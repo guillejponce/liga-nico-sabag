@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import Navbar from '../components/layout/navbar';
+import Footer from '../components/layout/footer';
 import logo from '../assets/images/logo.svg';
 import '../styles/App.css';
 
@@ -23,6 +24,7 @@ function App() {
             Learn React
           </a>
         </header>
+        <Footer />
       </div>
     </Router>
   );

@@ -18,6 +18,10 @@ const Navbar = () => {
               <Link to="/" className="text-text-light hover:bg-navbar-hover hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out">Inicio</Link>
               <Link to="/teams" className="text-text-light hover:bg-navbar-hover hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out">Equipos</Link>
               <Link to="/schedule" className="text-text-light hover:bg-navbar-hover hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out">Fixture</Link>
+              <Link to="/table" className="text-text-light hover:bg-navbar-hover hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out">Posiciones</Link>
+              <Link to="/stats" className="text-text-light hover:bg-navbar-hover hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out">Estadísticas</Link>
+              <Link to="/sanctions" className="text-text-light hover:bg-navbar-hover hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out">Tribunal</Link>
+              
             </div>
           </div>
           <div className="md:hidden">

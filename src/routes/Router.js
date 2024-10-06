@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import Home from '../pages/Home';
 import Teams from '../pages/Teams';
 // uncomment the following imports after creating the respective pages
-// import Schedule from '../pages/Schedule';
+import Schedule from '../pages/Schedule';
 // import Table from '../pages/Table';
 // import Stats from '../pages/Stats';
 // import Sanctions from '../pages/Sanctions';
@@ -14,8 +14,8 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/teams" element={<Teams />} />
-      {/* <Route path="/teams/:teamId" element={<TeamDetails />} />
       <Route path="/schedule" element={<Schedule />} />
+      {/* <Route path="/teams/:teamId" element={<TeamDetails />} />
       <Route path="/table" element={<Table />} />
       <Route path="/stats" element={<Stats />} />
       <Route path="/sanctions" element={<Sanctions />} /> */}

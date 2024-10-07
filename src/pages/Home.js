@@ -24,14 +24,15 @@ const Home = () => {
 
   return (
     <div className="bg-body-secondary min-h-screen">
-      {/* Full-width photo background with welcoming text */}
+      {/* 3/4 screen height photo background with bottom alignment */}
       <div 
-        className="w-full h-screen bg-cover bg-center flex items-center justify-center"
+        className="w-full h-[75vh] bg-cover bg-bottom flex items-center justify-center relative overflow-hidden"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
-        <div className="h-1/4 text-center text-white p-8 rounded">
-          <h1 className="text-5xl font-bold mb-4">Bienvenidos a la Liga Nico Sabag</h1>
-          <p className="text-xl">Donde la pasión por el fútbol se une con la competencia amistosa</p>
+        <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+        <div className="text-center text-white p-8 rounded relative z-10">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">Bienvenidos a la Liga Nico Sabag</h1>
+          <p className="text-lg md:text-xl lg:text-2xl">Donde la pasión por el fútbol se une con la competencia amistosa</p>
         </div>
       </div>
 
@@ -69,8 +70,8 @@ const Home = () => {
           <h2 className="text-2xl font-semibold mb-4 text-text">Accesos Rápidos</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <Link to="/table" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Tabla de Posiciones</Link>
-            <Link to="/stats" className="bg-accent-light text-white p-4 rounded text-center hover:bg-accent transition duration-300">Estadísticas</Link>
-            <Link to="/teams" className="bg-accent-dark text-white p-4 rounded text-center hover:bg-accent transition duration-300">Equipos</Link>
+            <Link to="/stats" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Estadísticas</Link>
+            <Link to="/teams" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Equipos</Link>
           </div>
         </section>
 

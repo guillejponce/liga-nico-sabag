@@ -4,10 +4,10 @@ import Home from '../pages/Home';
 import Teams from '../pages/Teams';
 // uncomment the following imports after creating the respective pages
 import Schedule from '../pages/Schedule';
-// import Table from '../pages/Table';
+import Table from '../pages/Table';
 // import Stats from '../pages/Stats';
 // import Sanctions from '../pages/Sanctions';
-// import TeamDetails from '../pages/TeamDetails';
+import TeamDetails from '../pages/TeamDetails';
 
 const AppRoutes = () => {
   return (
@@ -15,10 +15,10 @@ const AppRoutes = () => {
       <Route path="/" element={<Home />} />
       <Route path="/teams" element={<Teams />} />
       <Route path="/schedule" element={<Schedule />} />
-      {/* <Route path="/teams/:teamId" element={<TeamDetails />} />
       <Route path="/table" element={<Table />} />
-      <Route path="/stats" element={<Stats />} />
-      <Route path="/sanctions" element={<Sanctions />} /> */}
+      {/* <Route path="/stats" element={<Stats />} />
+      <Route path="/sanctions" element={<Sanctions />} /> */} 
+      <Route path="/teams/:teamId" element={<TeamDetails />} />
     </Routes>
   );
 };

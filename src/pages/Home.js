@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import backgroundImage from '../assets/images/homepage/landing.jpg';
 
 const Home = () => {
-  // Dummy data for latest news and featured match
   const latestNews = [
     { id: 1, title: 'Nuevo récord de goles en la liga', date: '2024-10-01' },
     { id: 2, title: 'Equipo revelación lidera la tabla', date: '2024-09-28' },
@@ -10,8 +10,8 @@ const Home = () => {
   ];
 
   const featuredMatch = {
-    team1: 'Los Tigres',
-    team2: 'Águilas FC',
+    team1: 'Ivory Toast',
+    team2: 'Ingestionables FC',
     date: '2024-10-10',
     time: '20:00',
   };
@@ -24,32 +24,47 @@ const Home = () => {
 
   return (
     <div className="bg-body-secondary min-h-screen">
+      {/* Full-width photo background with welcoming text */}
+      <div 
+        className="w-full h-screen bg-cover bg-center flex items-center justify-center"
+        style={{ backgroundImage: `url(${backgroundImage})` }}
+      >
+        <div className="h-1/4 text-center text-white p-8 rounded">
+          <h1 className="text-5xl font-bold mb-4">Bienvenidos a la Liga Nico Sabag</h1>
+          <p className="text-xl">Donde la pasión por el fútbol se une con la competencia amistosa</p>
+        </div>
+      </div>
+
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-center mb-8 text-text">Bienvenidos a la Liga Nico Sabag</h1>
-        
-        <section className="mb-12">
-          <h2 className="text-2xl font-semibold mb-4 text-text">Últimas Noticias</h2>
-          <ul className="space-y-2">
-            {latestNews.map((news) => (
-              <li key={news.id} className="bg-body p-4 rounded shadow">
-                <h3 className="font-medium text-text">{news.title}</h3>
-                <p className="text-sm text-text-dark">{news.date}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {/* Two-column layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+          {/* Latest News Column */}
+          <section>
+            <h2 className="text-2xl font-semibold mb-4 text-text">Últimas Noticias</h2>
+            <ul className="space-y-2">
+              {latestNews.map((news) => (
+                <li key={news.id} className="bg-body p-4 rounded shadow">
+                  <h3 className="font-medium text-text">{news.title}</h3>
+                  <p className="text-sm text-text-dark">{news.date}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-        <section className="mb-12">
-          <h2 className="text-2xl font-semibold mb-4 text-text">Próximo Partido Destacado</h2>
-          <div className="bg-body p-6 rounded shadow text-center">
-            <p className="text-xl mb-2 text-text">{featuredMatch.team1} vs {featuredMatch.team2}</p>
-            <p className="text-text-dark">{featuredMatch.date} - {featuredMatch.time}</p>
-            <Link to="/schedule" className="mt-4 inline-block bg-accent text-white px-4 py-2 rounded hover:bg-accent-dark transition duration-300">
-              Ver Fixture Completo
-            </Link>
-          </div>
-        </section>
+          {/* Featured Match Column */}
+          <section>
+            <h2 className="text-2xl font-semibold mb-4 text-text">Próximo Partido Destacado</h2>
+            <div className="bg-body p-6 rounded shadow text-center">
+              <p className="text-xl mb-2 text-text">{featuredMatch.team1} vs {featuredMatch.team2}</p>
+              <p className="text-text-dark">{featuredMatch.date} - {featuredMatch.time}</p>
+              <Link to="/schedule" className="mt-4 inline-block bg-accent text-white px-4 py-2 rounded hover:bg-accent-dark transition duration-300">
+                Ver Fixture Completo
+              </Link>
+            </div>
+          </section>
+        </div>
 
+        {/* Quick Access Section */}
         <section className="mb-12">
           <h2 className="text-2xl font-semibold mb-4 text-text">Accesos Rápidos</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -59,6 +74,7 @@ const Home = () => {
           </div>
         </section>
 
+        {/* Sponsors Section */}
         <section>
           <h2 className="text-2xl font-semibold mb-4 text-text">Nuestros Patrocinadores</h2>
           <div className="flex flex-wrap justify-center gap-8">

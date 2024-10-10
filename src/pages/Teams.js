@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Trophy, Star } from 'lucide-react';
-import { useTeams } from '../hooks/teams/teams';
+import { useTeams } from '../hooks/teams/useTeams';
 
 const Teams = () => {
   const { teams, loading, error } = useTeams();
@@ -30,7 +30,7 @@ const Teams = () => {
                   <img 
                     src={team.logoUrl} 
                     alt={`${team.name} logo`} 
-                    className="w-12 h-12 rounded-full mr-4 flex-shrink-0 object-cover" 
+                    className="w-24 h-24 rounded-full mr-4 flex-shrink-0 object-cover scale-300" 
                   />
                 ) : (
                   <div className="w-12 h-12 bg-gray-300 rounded-full mr-4 flex-shrink-0"></div>

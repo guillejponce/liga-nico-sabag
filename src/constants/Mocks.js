@@ -1,0 +1,15 @@
+export const teamsData = [
+    { id: 1, name: 'Ivory Toast FC', playerCount: 22, wins: 5, captain: 'Juan Pérez' },
+    { id: 2, name: 'Ingestionables FC', playerCount: 20, wins: 4, captain: 'Carlos Rodríguez' },
+    { id: 3, name: 'Gotish', playerCount: 21, wins: 6, captain: 'Miguel González' },
+    { id: 4, name: 'Al Ziya', playerCount: 23, wins: 3, captain: 'Luis Hernández' },
+    { id: 5, name: 'La Monga', playerCount: 22, wins: 5, captain: 'Roberto Sánchez' },
+    { id: 6, name: 'Exiliados', playerCount: 20, wins: 4, captain: 'Javier López' },
+    { id: 7, name: 'Pincharratas', playerCount: 21, wins: 6, captain: 'Pedro Martínez' },
+    { id: 8, name: 'Incus', playerCount: 23, wins: 3, captain: 'Raúl Ramírez' },
+    { id: 9, name: 'Marisol FC', playerCount: 22, wins: 5, captain: 'Fernando Gómez' },
+    { id: 10, name: 'Semasbros', playerCount: 20, wins: 4, captain: 'Sergio Pérez' },
+    { id: 11, name: 'Quiero Volver con mi Ex', playerCount: 21, wins: 6, captain: 'Hugo Sánchez' },
+    { id: 12, name: 'Turbines FC', playerCount: 23, wins: 3, captain: 'Jorge González' },
+    { id: 13, name: 'Masterclass', playerCount: 22, wins: 5, captain: 'Mario Hernández' },
+  ];

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import PocketBase from 'pocketbase';
-
-const pb = new PocketBase('http://127.0.0.1:8090');
+import { pb } from '../../config';
 
 export function useTeamPlayers(teamId) {
   const [players, setPlayers] = useState([]);
@@ -10,6 +8,11 @@ export function useTeamPlayers(teamId) {
 
   useEffect(() => {
     async function fetchPlayers() {
+      if (!teamId) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         const records = await pb.collection('players').getList(1, 50, {
@@ -22,14 +25,13 @@ export function useTeamPlayers(teamId) {
       } catch (err) {
         console.error('Error fetching players:', err);
         setError('Failed to fetch team players. Please try again later.');
+        setPlayers([]);
       } finally {
         setLoading(false);
       }
     }
 
-    if (teamId) {
-      fetchPlayers();
-    }
+    fetchPlayers();
   }, [teamId]);
 
   return { players, loading, error };

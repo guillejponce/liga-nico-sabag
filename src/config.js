@@ -6,4 +6,6 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://api.liganicosa
 // Create a PocketBase instance
 const pb = new PocketBase(BACKEND_URL);
 
+pb.autoCancellation(false);
+
 export { pb, BACKEND_URL };

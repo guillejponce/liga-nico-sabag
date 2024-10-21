@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, Outlet } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { pb } from '../../config';
-import { Users, Calendar, Award, Shield, LogOut, Home } from 'lucide-react';
+import { Users, Calendar, Shield, LogOut, User, Clipboard, Database } from 'lucide-react';
 
 const AdminDashboard = () => {
   const [user, setUser] = useState(null);
@@ -21,58 +21,77 @@ const AdminDashboard = () => {
     navigate('/login');
   };
 
-  const sidebarItems = [
-    { icon: Home, label: 'Dashboard', path: '/admin/dashboard' },
-    { icon: Users, label: 'Teams', path: '/admin/teams' },
-    { icon: Users, label: 'Players', path: '/admin/players' },
-    { icon: Calendar, label: 'Fixtures', path: '/admin/fixtures' },
-    { icon: Award, label: 'Results', path: '/admin/results' },
-    { icon: Shield, label: 'Sanctions', path: '/admin/sanctions' },
+  const dashboardItems = [
+    { icon: Users, label: 'Manage Teams', path: '/admin/teams', color: 'bg-green-500' },
+    { icon: User, label: 'Manage Players', path: '/admin/players', color: 'bg-yellow-500' },
+    { icon: Calendar, label: 'Manage Fixtures', path: '/admin/fixtures', color: 'bg-purple-500' },
+    { icon: Clipboard, label: 'Manage Results', path: '/admin/results', color: 'bg-red-500' },
+    { icon: Shield, label: 'Manage Sanctions', path: '/admin/sanctions', color: 'bg-indigo-500' },
+    { icon: Database, label: 'Database Admin', path: 'https://api.liganicosabag.me/_/', color: 'bg-gray-700', external: true },
   ];
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="w-64 bg-indigo-800 text-white">
-        <div className="p-4">
-          <h1 className="text-2xl font-semibold">Admin Panel</h1>
-        </div>
-        <nav className="mt-8">
-          {sidebarItems.map((item, index) => (
-            <Link
-              key={index}
-              to={item.path}
-              className="flex items-center py-2 px-4 hover:bg-indigo-700 transition-colors duration-200"
-            >
-              <item.icon className="mr-3 h-5 w-5" />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="absolute bottom-0 w-64 p-4">
-          <button
-            onClick={handleLogout}
-            className="flex items-center text-white hover:text-indigo-200 transition-colors duration-200"
-          >
-            <LogOut className="mr-3 h-5 w-5" />
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 overflow-x-hidden overflow-y-auto">
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Welcome, {user?.email}
-            </h1>
+    <div className="min-h-screen bg-gray-100">
+      <nav className="bg-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            </div>
+            <div className="flex items-center">
+              <span className="text-gray-700 mr-4">Welcome, {user?.email}</span>
+              <button
+                onClick={handleLogout}
+                className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded flex items-center"
+              >
+                <LogOut className="mr-2 h-5 w-5" />
+                Logout
+              </button>
+            </div>
           </div>
-        </header>
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <Outlet />
-        </main>
-      </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <h2 className="text-3xl font-semibold text-gray-900 mb-6">Admin Controls</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {dashboardItems.map((item, index) => (
+              item.external ? (
+                <a
+                  key={index}
+                  href={item.path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${item.color} hover:opacity-90 text-white rounded-lg shadow-md overflow-hidden`}
+                >
+                  <div className="p-5 flex items-center">
+                    <item.icon className="h-10 w-10 mr-3" />
+                    <div>
+                      <p className="text-xl font-semibold">{item.label}</p>
+                      <p className="text-sm opacity-80">Opens in new tab</p>
+                    </div>
+                  </div>
+                </a>
+              ) : (
+                <Link
+                  key={index}
+                  to={item.path}
+                  className={`${item.color} hover:opacity-90 text-white rounded-lg shadow-md overflow-hidden`}
+                >
+                  <div className="p-5 flex items-center">
+                    <item.icon className="h-10 w-10 mr-3" />
+                    <div>
+                      <p className="text-xl font-semibold">{item.label}</p>
+                      <p className="text-sm opacity-80">Click to manage</p>
+                    </div>
+                  </div>
+                </Link>
+              )
+            ))}
+          </div>
+        </div>
+      </main>
     </div>
   );
 };

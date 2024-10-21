@@ -96,3 +96,16 @@ export const deletePlayer = async (id) => {
     throw new Error(`Failed to delete player: ${err.message}`);
   }
 };
+
+export const fetchAllPlayers = async () => {
+    try {
+      const resultList = await pb.collection('players').getList(1, 100, {
+        sort: 'last_name,first_name',
+      });
+      console.log('Fetched all players:', resultList);
+      return resultList.items;
+    } catch (err) {
+      console.error('Error fetching all players:', err);
+      throw new Error('Failed to fetch players. Please try again.');
+    }
+  };

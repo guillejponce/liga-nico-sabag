@@ -1,5 +1,14 @@
 import { pb } from '../../config';
 
+// Helper function to get headers with bearer token
+const getHeaders = () => {
+  const token = localStorage.getItem('bearerToken'); // Assuming token is stored in localStorage
+  return {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+};
+
 export const fetchPlayers = async (searchFilter = '', teamFilter = '') => {
   try {
     let filter = '';
@@ -11,6 +20,7 @@ export const fetchPlayers = async (searchFilter = '', teamFilter = '') => {
     }
 
     const resultList = await pb.collection('players').getList(1, 50, {
+      headers: getHeaders(), // Add headers with bearer token
       filter,
       sort: '-created',
       expand: 'team',
@@ -32,39 +42,41 @@ export const fetchPlayers = async (searchFilter = '', teamFilter = '') => {
 };
 
 export const createPlayer = async (playerData) => {
-    try {
-      console.log('Received player data in createPlayer:', playerData);
-  
-      if (!playerData) {
-        throw new Error('Player data is null or undefined');
-      }
-  
-      const requiredFields = ['rut', 'team', 'first_name', 'last_name'];
-      for (const field of requiredFields) {
-        if (!playerData[field]) {
-          throw new Error(`${field} is required and cannot be empty`);
-        }
-      }
-  
-      console.log('JSON being sent in the request:', JSON.stringify(playerData, null, 2));
-  
-      const createdPlayer = await pb.collection('players').create(playerData);
-      console.log('Player created successfully:', createdPlayer);
-      return createdPlayer;
-    } catch (err) {
-      console.error('Error in createPlayer:', err);
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-        console.error('Response headers:', err.response.headers);
-      } else if (err.request) {
-        console.error('No response received:', err.request);
-      } else {
-        console.error('Error message:', err.message);
-      }
-      throw new Error(`Failed to create player: ${err.message}`);
+  try {
+    console.log('Received player data in createPlayer:', playerData);
+
+    if (!playerData) {
+      throw new Error('Player data is null or undefined');
     }
-  };
+
+    const requiredFields = ['rut', 'team', 'first_name', 'last_name'];
+    for (const field of requiredFields) {
+      if (!playerData[field]) {
+        throw new Error(`${field} is required and cannot be empty`);
+      }
+    }
+
+    console.log('JSON being sent in the request:', JSON.stringify(playerData, null, 2));
+
+    const createdPlayer = await pb.collection('players').create(playerData, {
+      headers: getHeaders(), // Add headers with bearer token
+    });
+    console.log('Player created successfully:', createdPlayer);
+    return createdPlayer;
+  } catch (err) {
+    console.error('Error in createPlayer:', err);
+    if (err.response) {
+      console.error('Response data:', err.response.data);
+      console.error('Response status:', err.response.status);
+      console.error('Response headers:', err.response.headers);
+    } else if (err.request) {
+      console.error('No response received:', err.request);
+    } else {
+      console.error('Error message:', err.message);
+    }
+    throw new Error(`Failed to create player: ${err.message}`);
+  }
+};
 
 export const updatePlayer = async (id, playerData) => {
   try {
@@ -77,7 +89,9 @@ export const updatePlayer = async (id, playerData) => {
       man_of_the_match: Number(playerData.man_of_the_match),
     };
 
-    const updatedPlayer = await pb.collection('players').update(id, formattedData);
+    const updatedPlayer = await pb.collection('players').update(id, formattedData, {
+      headers: getHeaders(), // Add headers with bearer token
+    });
     console.log('Updated player:', updatedPlayer);
     return updatedPlayer;
   } catch (err) {
@@ -88,7 +102,9 @@ export const updatePlayer = async (id, playerData) => {
 
 export const deletePlayer = async (id) => {
   try {
-    await pb.collection('players').delete(id);
+    await pb.collection('players').delete(id, {
+      headers: getHeaders(), // Add headers with bearer token
+    });
     console.log('Deleted player with ID:', id);
     return true;
   } catch (err) {
@@ -98,14 +114,15 @@ export const deletePlayer = async (id) => {
 };
 
 export const fetchAllPlayers = async () => {
-    try {
-      const resultList = await pb.collection('players').getList(1, 100, {
-        sort: 'last_name,first_name',
-      });
-      console.log('Fetched all players:', resultList);
-      return resultList.items;
-    } catch (err) {
-      console.error('Error fetching all players:', err);
-      throw new Error('Failed to fetch players. Please try again.');
-    }
-  };
+  try {
+    const resultList = await pb.collection('players').getList(1, 100, {
+      headers: getHeaders(), // Add headers with bearer token
+      sort: 'last_name,first_name',
+    });
+    console.log('Fetched all players:', resultList);
+    return resultList.items;
+  } catch (err) {
+    console.error('Error fetching all players:', err);
+    throw new Error('Failed to fetch players. Please try again.');
+  }
+};

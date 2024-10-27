@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { pb } from '../../config';
-import { Users, Calendar, Shield, LogOut, User, Clipboard, Database } from 'lucide-react';
+import { Users, Calendar, Shield, LogOut, User, Database } from 'lucide-react';
 
 const AdminDashboard = () => {
   const [user, setUser] = useState(null);
@@ -25,7 +25,6 @@ const AdminDashboard = () => {
     { icon: Users, label: 'Manage Teams', path: '/admin/teams', color: 'bg-green-500' },
     { icon: User, label: 'Manage Players', path: '/admin/players', color: 'bg-yellow-500' },
     { icon: Calendar, label: 'Manage Fixtures', path: '/admin/fixtures', color: 'bg-purple-500' },
-    { icon: Clipboard, label: 'Manage Results', path: '/admin/results', color: 'bg-red-500' },
     { icon: Shield, label: 'Manage Sanctions', path: '/admin/sanctions', color: 'bg-indigo-500' },
     { icon: Database, label: 'Database Admin', path: 'https://api.liganicosabag.me/_/', color: 'bg-gray-700', external: true },
   ];

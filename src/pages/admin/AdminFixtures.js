@@ -1,27 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import { useTeams } from '../../hooks/teams/useTeams';
-import { Calendar, Trophy, Loader2 } from 'lucide-react';
+import { Calendar, Trophy, Loader2, Plus } from 'lucide-react';
 import AdminMatchEvents from './AdminMatchEvents';
-import { fetchMatchdays, createMatchday, deleteMatchday } from '../../hooks/admin/matchdayHandlers'; // Import matchday handlers
+import { fetchMatchdays, createMatchday, deleteMatchday } from '../../hooks/admin/matchdayHandlers';
+import { fetchMatchesByMatchday, createMatch, updateMatch as updateMatchAPI } from '../../hooks/admin/matchHandlers';
+import { pb } from '../../config';
 
 const AdminFixtures = () => {
   const [matchdays, setMatchdays] = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { teams, loading, error } = useTeams();
+  const [setError] = useState(null);
+  const { teams, loading, error: teamsError } = useTeams();
 
   useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+    
     const loadMatchdays = async () => {
       try {
         const fetchedMatchdays = await fetchMatchdays();
-        setMatchdays(fetchedMatchdays);
+        
+        if (!mounted) return;
+
+        const matchdaysWithMatches = await Promise.all(
+          fetchedMatchdays.map(async (matchday) => {
+            try {
+              const matches = await fetchMatchesByMatchday(matchday.id, controller.signal);
+              if (!mounted) return { ...matchday, matches: [] };
+              
+              return {
+                ...matchday,
+                matches: matches || [],
+              };
+            } catch (err) {
+              console.warn(`Failed to load matches for matchday ${matchday.id}:`, err);
+              return {
+                ...matchday,
+                matches: [],
+              };
+            }
+          })
+        );
+        
+        if (mounted) {
+          setMatchdays(matchdaysWithMatches.filter(Boolean));
+        }
       } catch (err) {
         console.error('Error loading matchdays:', err);
+        if (mounted) {
+          setError('Failed to load matchdays. Please try again.');
+        }
       }
     };
 
     loadMatchdays();
-  }, []);
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [setError]);
 
   const generateMatchday = async () => {
     try {
@@ -29,33 +68,100 @@ const AdminFixtures = () => {
       setMatchdays([...matchdays, newMatchday]);
     } catch (err) {
       console.error('Error creating matchday:', err);
+      setError('Failed to create matchday. Please try again.');
     }
   };
 
-  const updateMatch = (matchdayIndex, matchIndex, field, value) => {
-    const updatedMatchdays = matchdays.map((matchday, mdIndex) => 
-      mdIndex === matchdayIndex
-        ? matchday.map((match, mIndex) => 
-            mIndex === matchIndex ? { ...match, [field]: value } : match
-          )
-        : matchday
-    );
-    setMatchdays(updatedMatchdays);
+  const handleMatchUpdate = async (matchdayIndex, matchIndex, field, value) => {
+    try {
+      const match = matchdays[matchdayIndex].matches[matchIndex];
+      
+      let updateData;
+      
+      if (field === 'is_finished') {
+        updateData = {
+          matchday: match.matchday,
+          date_time: match.date_time || new Date().toISOString(),
+          home_team: match.home_team_id || '',
+          away_team: match.away_team_id || '',
+          home_team_score: match.home_team_score || 0,
+          away_team_score: match.away_team_score || 0,
+          is_finished: value,
+          events: match.events?.map(event => event.id) || []
+        };
+      } else if (field === 'home_team' || field === 'away_team') {
+        updateData = {
+          matchday: match.matchday,
+          date_time: match.date_time || new Date().toISOString(),
+          home_team: field === 'home_team' ? value : match.home_team_id || '',
+          away_team: field === 'away_team' ? value : match.away_team_id || '',
+          home_team_score: match.home_team_score || 0,
+          away_team_score: match.away_team_score || 0,
+          is_finished: match.is_finished || false,
+          events: match.events?.map(event => event.id) || []
+        };
+      } else {
+        updateData = {
+          matchday: match.matchday,
+          date_time: match.date_time || new Date().toISOString(),
+          home_team: match.home_team_id || '',
+          away_team: match.away_team_id || '',
+          [field]: value,
+          is_finished: match.is_finished || false,
+          events: match.events?.map(event => event.id) || []
+        };
+      }
+  
+      const updatedMatch = await updateMatchAPI(match.id, updateData);
+  
+      const updatedMatchdays = matchdays.map((matchday, mdIndex) => 
+        mdIndex === matchdayIndex
+          ? {
+              ...matchday,
+              matches: matchday.matches.map((m, mIndex) => {
+                if (mIndex === matchIndex) {
+                  const homeTeam = teams.find(t => t.id === updatedMatch.home_team);
+                  const awayTeam = teams.find(t => t.id === updatedMatch.away_team);
+                  
+                  return {
+                    ...updatedMatch,
+                    home_team: homeTeam?.name || '',
+                    away_team: awayTeam?.name || '',
+                    home_team_id: updatedMatch.home_team,
+                    away_team_id: updatedMatch.away_team,
+                    home_team_logo: homeTeam?.logo || '',
+                    away_team_logo: awayTeam?.logo || ''
+                  };
+                }
+                return m;
+              })
+            }
+          : matchday
+      );
+      setMatchdays(updatedMatchdays);
+    } catch (err) {
+      console.error('Error updating match:', err);
+      setError('Failed to update match. Please try again.');
+    }
   };
 
   const updateMatchEvents = (matchdayIndex, matchIndex, events) => {
     const updatedMatchdays = matchdays.map((matchday, mdIndex) => 
       mdIndex === matchdayIndex
-        ? matchday.map((match, mIndex) => 
-            mIndex === matchIndex ? { ...match, events } : match
-          )
+        ? {
+            ...matchday,
+            matches: matchday.matches.map((match, mIndex) => 
+              mIndex === matchIndex ? { ...match, events } : match
+            )
+          }
         : matchday
     );
     setMatchdays(updatedMatchdays);
   };
 
-  const toggleMatchStatus = (matchdayIndex, matchIndex) => {
-    updateMatch(matchdayIndex, matchIndex, 'finished', !matchdays[matchdayIndex][matchIndex].finished);
+  const toggleMatchStatus = async (matchdayIndex, matchIndex) => {
+    const match = matchdays[matchdayIndex].matches[matchIndex];
+    await handleMatchUpdate(matchdayIndex, matchIndex, 'is_finished', !match.is_finished);
   };
 
   const openEditEventsModal = (matchdayIndex, matchIndex) => {
@@ -74,6 +180,48 @@ const AdminFixtures = () => {
       setMatchdays(matchdays.filter(matchday => matchday.id !== matchdayId));
     } catch (err) {
       console.error('Error deleting matchday:', err);
+      setError('Failed to delete matchday. Please try again.');
+    }
+  };
+
+  const handleAddMatch = async (matchdayId, matchdayIndex) => {
+    try {
+      const newMatch = await createMatch(matchdayId);
+      
+      const updatedMatchdays = matchdays.map((matchday, index) => {
+        if (index === matchdayIndex) {
+          return {
+            ...matchday,
+            matches: Array.isArray(matchday.matches) 
+              ? [...matchday.matches, {
+                  ...newMatch,
+                  home_team: '',
+                  away_team: '',
+                  home_team_logo: '',
+                  away_team_logo: '',
+                  home_team_id: '',
+                  away_team_id: '',
+                  events: []
+                }]
+              : [{
+                  ...newMatch,
+                  home_team: '',
+                  away_team: '',
+                  home_team_logo: '',
+                  away_team_logo: '',
+                  home_team_id: '',
+                  away_team_id: '',
+                  events: []
+                }]
+          };
+        }
+        return matchday;
+      });
+      
+      setMatchdays(updatedMatchdays);
+    } catch (err) {
+      console.error('Error adding match:', err);
+      setError('Failed to add match. Please try again.');
     }
   };
 
@@ -86,12 +234,12 @@ const AdminFixtures = () => {
     );
   }
 
-  if (error) {
+  if (teamsError) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-red-500 text-center">
           <p className="text-xl font-bold">Error loading teams</p>
-          <p className="mt-2">{error}</p>
+          <p className="mt-2">{teamsError}</p>
         </div>
       </div>
     );
@@ -121,163 +269,181 @@ const AdminFixtures = () => {
                 <Calendar className="w-6 h-6" />
                 <span>Matchday {matchday.number}</span>
               </div>
-              <button
-                onClick={() => handleDeleteMatchday(matchday.id)}
-                className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-              >
-                Delete
-              </button>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleAddMatch(matchday.id, mdIndex)}
+                  className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Match</span>
+                </button>
+                <button
+                  onClick={() => handleDeleteMatchday(matchday.id)}
+                  className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
 
             <div className="p-6">
-              {matchday.map((match, matchIndex) => (
-                <div key={matchIndex} className="mb-4 last:mb-0">
-                  {match.awayTeam === 'Free' ? (
-                    <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
-                      <div className="flex items-center justify-center space-x-3">
-                        <select
-                          className="p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={match.homeTeam}
-                          onChange={(e) => updateMatch(mdIndex, matchIndex, 'homeTeam', e.target.value)}
-                        >
-                          <option value="">Select Free Team</option>
-                          {teams.map((team) => (
-                            <option key={team.id} value={team.name}>
-                              {team.name}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-center text-gray-700 font-medium">
-                          has a bye week.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
-                      <div className="flex items-center justify-between space-x-4">
-                        {/* Home Team */}
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            {match.homeTeam && (
-                              <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
-                                <img
-                                  src={teams.find(team => team.name === match.homeTeam)?.logoUrl}
-                                  alt={match.homeTeam}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            )}
-                            <select
-                              className="flex-1 p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              value={match.homeTeam}
-                              onChange={(e) => updateMatch(mdIndex, matchIndex, 'homeTeam', e.target.value)}
-                              disabled={match.finished}
-                            >
-                              <option value="">Select Home Team</option>
-                              {teams.map((team) => (
-                                <option key={team.id} value={team.name}>
-                                  {team.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Score Section */}
-                        <div className="flex items-center space-x-4 bg-gray-800 rounded-xl px-6 py-3">
-                          <input
-                            type="number"
-                            placeholder="0"
-                            className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                            value={match.homeScore}
-                            onChange={(e) => updateMatch(mdIndex, matchIndex, 'homeScore', e.target.value)}
-                            disabled={match.finished}
-                            min="0"
-                          />
-                          <span className="text-2xl font-bold text-white">:</span>
-                          <input
-                            type="number"
-                            placeholder="0"
-                            className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                            value={match.awayScore}
-                            onChange={(e) => updateMatch(mdIndex, matchIndex, 'awayScore', e.target.value)}
-                            disabled={match.finished}
-                            min="0"
-                          />
-                        </div>
-
-                        {/* Away Team */}
-                        <div className="flex-1">
-                          <div className="flex items-center justify-end space-x-3">
-                            <select
-                              className="flex-1 p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              value={match.awayTeam}
-                              onChange={(e) => updateMatch(mdIndex, matchIndex, 'awayTeam', e.target.value)}
-                              disabled={match.finished}
-                            >
-                              <option value="">Select Away Team</option>
-                              {teams.map((team) => (
-                                <option key={team.id} value={team.name}>
-                                  {team.name}
-                                </option>
-                              ))}
-                            </select>
-                            {match.awayTeam && match.awayTeam !== 'Free' && (
-                              <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
-                                <img
-                                  src={teams.find(team => team.name === match.awayTeam)?.logoUrl}
-                                  alt={match.awayTeam}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Match Events Summary */}
-                      {match.events && match.events.length > 0 && (
-                        <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-                          <h4 className="text-sm font-semibold text-gray-600 mb-2">Match Events</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {match.events.map(event => (
-                              <div
-                                key={event.id}
-                                className={`text-xs px-2 py-1 rounded-full ${
-                                  event.team === 'home' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
-                                }`}
-                              >
-                                {event.minute}' - {event.player} ({event.type})
-                              </div>
+              {matchday.matches && matchday.matches.length > 0 ? (
+                matchday.matches.map((match, matchIndex) => (
+                  <div key={matchIndex} className="mb-4 last:mb-0">
+                    {match.away_team === 'FREE' ? (
+                      <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
+                        <div className="flex items-center justify-center space-x-3">
+                          <select
+                            className="p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            value={match.home_team_id || ""}
+                            onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_team', e.target.value)}
+                          >
+                            <option value="">Select Free Team</option>
+                            {teams.map((team) => (
+                              <option key={team.id} value={team.id}>
+                                {team.name}
+                              </option>
                             ))}
+                          </select>
+                          <p className="text-center text-gray-700 font-medium">
+                            has a bye week.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
+                        <div className="flex items-center justify-between space-x-4">
+                          {/* Home Team */}
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                            {match.home_team && (
+                              <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+                                <img
+                                  src={match.home_team_logo 
+                                    ? pb.getFileUrl({ collectionId: '6hkvwfswk61t3b1', collectionName: 'teams', id: match.home_team_id }, match.home_team_logo)
+                                    : ''}
+                                  alt={match.home_team}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                              <select
+                                className="flex-1 p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                value={match.home_team_id || ""}
+                                onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_team', e.target.value)}
+                                disabled={match.is_finished}
+                              >
+                                <option value="">Select Home Team</option>
+                                {teams.map((team) => (
+                                  <option key={team.id} value={team.id}>
+                                    {team.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Score Section */}
+                          <div className="flex items-center space-x-4 bg-gray-800 rounded-xl px-6 py-3">
+                            <input
+                              type="number"
+                              placeholder="0"
+                              className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                              value={match.home_team_score || 0}
+                              onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_team_score', parseInt(e.target.value) || 0)}
+                              disabled={match.is_finished}
+                              min="0"
+                            />
+                            <span className="text-2xl font-bold text-white">:</span>
+                            <input
+                              type="number"
+                              placeholder="0"
+                              className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                              value={match.away_team_score || 0}
+                              onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'away_team_score', parseInt(e.target.value) || 0)}
+                              disabled={match.is_finished}
+                              min="0"
+                            />
+                          </div>
+                          {/* Away Team */}
+                          <div className="flex-1">
+                            <div className="flex items-center justify-end space-x-3">
+                              <select
+                                className="flex-1 p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                value={match.away_team_id || ""}
+                                onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'away_team', e.target.value)}
+                                disabled={match.is_finished}
+                              >
+                                <option value="">Select Away Team</option>
+                                {teams.map((team) => (
+                                  <option key={team.id} value={team.id}>
+                                    {team.name}
+                                  </option>
+                                ))}
+                              </select>
+                              {match.away_team && match.away_team !== 'FREE' && (
+                                <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+                                  <img
+                                    src={match.away_team_logo 
+                                      ? pb.getFileUrl({ collectionId: '6hkvwfswk61t3b1', collectionName: 'teams', id: match.away_team_id }, match.away_team_logo)
+                                      : ''}
+                                    alt={match.away_team}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      )}
 
-                      {/* Match Controls */}
-                      <div className="flex justify-between mt-4">
-                        <button
-                          onClick={() => toggleMatchStatus(mdIndex, matchIndex)}
-                          className={`${
-                            match.finished
-                              ? 'bg-yellow-500 hover:bg-yellow-600'
-                              : 'bg-blue-500 hover:bg-blue-600'
-                          } text-white font-bold py-2 px-4 rounded`}
-                        >
-                          {match.finished ? 'Edit Match' : 'End Match'}
-                        </button>
-                        <button
-                          onClick={() => openEditEventsModal(mdIndex, matchIndex)}
-                          disabled={!match.homeTeam || !match.awayTeam}
-                          className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Edit Match Events
-                        </button>
+                        {/* Match Events Summary */}
+                        {match.events && match.events.length > 0 && (
+                          <div className="mt-4 p-4 bg-gray-100 rounded-lg">
+                            <h4 className="text-sm font-semibold text-gray-600 mb-2">Match Events</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {match.events.map(event => (
+                                <div
+                                  key={event.id}
+                                  className={`text-xs px-2 py-1 rounded-full ${
+                                    event.team === 'home' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
+                                  }`}
+                                >
+                                  {event.minute}' - {event.player} ({event.type})
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Match Controls */}
+                        <div className="flex justify-between mt-4">
+                          <button
+                            onClick={() => toggleMatchStatus(mdIndex, matchIndex)}
+                            className={`${
+                              match.is_finished
+                                ? 'bg-yellow-500 hover:bg-yellow-600'
+                                : 'bg-blue-500 hover:bg-blue-600'
+                            } text-white font-bold py-2 px-4 rounded`}
+                          >
+                            {match.is_finished ? 'Edit Match' : 'End Match'}
+                          </button>
+                          <button
+                            onClick={() => openEditEventsModal(mdIndex, matchIndex)}
+                            disabled={!match.home_team || !match.away_team}
+                            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Edit Match Events
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  No matches scheduled for this matchday yet
                 </div>
-              ))}
+              )}
             </div>
           </div>
         ))}
@@ -285,7 +451,7 @@ const AdminFixtures = () => {
         {/* Match Events Modal */}
         {isModalOpen && selectedMatch && (
           <AdminMatchEvents
-            match={matchdays[selectedMatch.matchdayIndex][selectedMatch.matchIndex]}
+            match={matchdays[selectedMatch.matchdayIndex].matches[selectedMatch.matchIndex]}
             matchdayIndex={selectedMatch.matchdayIndex}
             matchIndex={selectedMatch.matchIndex}
             onClose={closeEditEventsModal}

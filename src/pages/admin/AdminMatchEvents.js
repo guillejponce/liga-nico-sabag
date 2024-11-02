@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTeamPlayers } from '../../hooks/players/useTeamPlayers';
 import { Goal, AlertTriangle, Clock, Loader2 } from 'lucide-react';
+import { updateMatch } from '../../hooks/admin/matchHandlers';
 
 const EVENT_TYPES = {
   GOAL: 'Goal',
@@ -12,14 +13,14 @@ const EVENT_TYPES = {
 };
 
 const EditMatchEventsModal = ({ match, matchdayIndex, matchIndex, onClose, updateMatchEvents }) => {
-  const { players: homePlayers, loading: homeLoading } = useTeamPlayers(match.homeTeam);
-  const { players: awayPlayers, loading: awayLoading } = useTeamPlayers(match.awayTeam);
+  const { players: homePlayers, loading: homeLoading } = useTeamPlayers(match.home_team_id);
+  const { players: awayPlayers, loading: awayLoading } = useTeamPlayers(match.away_team_id);
   const [selectedTeam, setSelectedTeam] = useState('home');
   const [eventType, setEventType] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState('');
   const [minute, setMinute] = useState('');
 
-  const addEvent = () => {
+  const addEvent = async () => {
     if (!eventType || !selectedPlayer || !minute) return;
     
     const newEvent = {
@@ -31,17 +32,41 @@ const EditMatchEventsModal = ({ match, matchdayIndex, matchIndex, onClose, updat
     };
     
     const updatedEvents = [...(match.events || []), newEvent].sort((a, b) => a.minute - b.minute);
-    updateMatchEvents(matchdayIndex, matchIndex, updatedEvents);
     
-    // Reset form
-    setEventType('');
-    setSelectedPlayer('');
-    setMinute('');
+    try {
+      // Update the match in the database with the new events
+      await updateMatch(match.id, {
+        ...match,
+        events: updatedEvents
+      });
+      
+      // Update local state
+      updateMatchEvents(matchdayIndex, matchIndex, updatedEvents);
+      
+      // Reset form
+      setEventType('');
+      setSelectedPlayer('');
+      setMinute('');
+    } catch (error) {
+      console.error('Error adding event:', error);
+    }
   };
   
-  const removeEvent = (eventId) => {
-    const updatedEvents = (match.events || []).filter(event => event.id !== eventId);
-    updateMatchEvents(matchdayIndex, matchIndex, updatedEvents);
+  const removeEvent = async (eventId) => {
+    try {
+      const updatedEvents = (match.events || []).filter(event => event.id !== eventId);
+      
+      // Update the match in the database with the filtered events
+      await updateMatch(match.id, {
+        ...match,
+        events: updatedEvents
+      });
+      
+      // Update local state
+      updateMatchEvents(matchdayIndex, matchIndex, updatedEvents);
+    } catch (error) {
+      console.error('Error removing event:', error);
+    }
   };
 
   const getEventIcon = (type) => {

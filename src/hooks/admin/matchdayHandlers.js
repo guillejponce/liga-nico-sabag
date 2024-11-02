@@ -1,18 +1,8 @@
 import { pb } from '../../config';
 
-// Helper function to get headers with bearer token
-const getHeaders = () => {
-  const token = localStorage.getItem('bearerToken'); // Assuming token is stored in localStorage
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
-};
-
 export const fetchMatchdays = async () => {
   try {
     const response = await pb.collection('matchdays').getList(1, 30, {
-      headers: getHeaders(),
       sort: '-created',
     });
     console.log('Fetched matchdays:', response);
@@ -25,7 +15,7 @@ export const fetchMatchdays = async () => {
 
 export const createMatchday = async (matchdayData) => {
   try {
-    console.log('Received matchday data in createMatchday:', matchdayData);
+    console.log('Creating matchday with data:', matchdayData);
 
     if (!matchdayData || !matchdayData.date_time) {
       throw new Error('Matchday date_time is required and cannot be empty');
@@ -39,11 +29,10 @@ export const createMatchday = async (matchdayData) => {
     const newMatchdayData = {
       ...matchdayData,
       number: nextNumber,
+      matches: [], // Initialize with empty matches array
     };
 
-    const createdMatchday = await pb.collection('matchdays').create(newMatchdayData, {
-      headers: getHeaders(),
-    });
+    const createdMatchday = await pb.collection('matchdays').create(newMatchdayData);
     console.log('Matchday created successfully:', createdMatchday);
     return createdMatchday;
   } catch (err) {
@@ -54,10 +43,9 @@ export const createMatchday = async (matchdayData) => {
 
 export const updateMatchday = async (id, matchdayData) => {
   try {
-    const updatedMatchday = await pb.collection('matchdays').update(id, matchdayData, {
-      headers: getHeaders(),
-    });
-    console.log('Updated matchday:', updatedMatchday);
+    console.log('Updating matchday with ID:', id, 'and data:', matchdayData);
+    const updatedMatchday = await pb.collection('matchdays').update(id, matchdayData);
+    console.log('Matchday updated successfully:', updatedMatchday);
     return updatedMatchday;
   } catch (err) {
     console.error('Error updating matchday:', err);
@@ -67,9 +55,7 @@ export const updateMatchday = async (id, matchdayData) => {
 
 export const deleteMatchday = async (id) => {
   try {
-    await pb.collection('matchdays').delete(id, {
-      headers: getHeaders(),
-    });
+    await pb.collection('matchdays').delete(id);
     console.log('Deleted matchday with ID:', id);
     return true;
   } catch (err) {
@@ -81,7 +67,6 @@ export const deleteMatchday = async (id) => {
 export const fetchAllMatchdays = async () => {
   try {
     const response = await pb.collection('matchdays').getList(1, 100, {
-      headers: getHeaders(),
       sort: 'date_time',
     });
     console.log('Fetched all matchdays:', response);

@@ -2,10 +2,10 @@ import { pb } from '../../config';
 
 export const fetchMatchdays = async () => {
   try {
-    const response = await pb.collection('matchdays').getList(1, 30, {
-      sort: '-created',
+    const response = await pb.collection('matchdays').getList(1, 100, {
+      sort: '-number',
     });
-    console.log('Fetched matchdays:', response);
+    console.log('Fetched matchdays:', response.items);
     return response.items;
   } catch (err) {
     console.error('Error fetching matchdays:', err);
@@ -23,7 +23,8 @@ export const createMatchday = async (matchdayData) => {
 
     // Fetch all existing matchdays to determine the next matchday number
     const existingMatchdays = await fetchAllMatchdays();
-    const maxNumber = existingMatchdays.reduce((max, matchday) => Math.max(max, matchday.number), 0);
+    // Find the highest number and add 1
+    const maxNumber = Math.max(...existingMatchdays.map(m => m.number), 0);
     const nextNumber = maxNumber + 1;
 
     const newMatchdayData = {
@@ -34,7 +35,13 @@ export const createMatchday = async (matchdayData) => {
 
     const createdMatchday = await pb.collection('matchdays').create(newMatchdayData);
     console.log('Matchday created successfully:', createdMatchday);
-    return createdMatchday;
+
+    // Immediately fetch the updated list to ensure correct order
+    const updatedMatchdays = await fetchMatchdays();
+    return {
+      createdMatchday,
+      updatedMatchdays
+    };
   } catch (err) {
     console.error('Error in createMatchday:', err);
     throw new Error(`Failed to create matchday: ${err.message}`);

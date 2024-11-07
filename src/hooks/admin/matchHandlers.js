@@ -65,6 +65,19 @@ export const createMatch = async (matchdayId) => {
 
 export const updateMatch = async (id, matchData) => {
   try {
+    // If match is being marked as finished, ensure scores are valid numbers
+    if (matchData.is_finished === true) {
+      const homeScore = Number(matchData.home_team_score ?? 0);
+      const awayScore = Number(matchData.away_team_score ?? 0);
+      
+      // Update the matchData with converted scores
+      matchData = {
+        ...matchData,
+        home_team_score: homeScore,
+        away_team_score: awayScore
+      };
+    }
+
     console.log('Updating match with ID:', id, 'and data:', matchData);
     const updatedMatch = await pb.collection('matches').update(id, matchData);
     console.log('Match updated successfully:', updatedMatch);

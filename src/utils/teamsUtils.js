@@ -136,6 +136,9 @@ export const calculateTeamStats = (team) => {
     points,
     goalDifference,
     gamesPlayed,
-    goalsForAgainst: `${team.scored_goals}:${team.concieved_goals}`
+    goalsForAgainst: `${team.scored_goals}:${team.concieved_goals}`,
+    won: team.won_matches,
+    lost: team.lost_matches,
+    drawn: team.drawn_matches
   };
 };

@@ -31,7 +31,7 @@ const columns = [
     disableSortBy: true,
   },
   {
-    Header: 'Team',
+    Header: 'Equipo',
     accessor: 'name',
     Cell: ({ value }) => (
       <span className="font-semibold text-gray-800">{value}</span>
@@ -39,7 +39,7 @@ const columns = [
     disableSortBy: true
   },
   {
-    Header: 'Points',
+    Header: 'Pts',
     accessor: 'points',
     Cell: ({ value }) => (
       <div className="font-bold text-blue-800">{value}</div>
@@ -47,7 +47,39 @@ const columns = [
     disableSortBy: true
   },
   {
-    Header: 'Goal Difference',
+    Header: 'PJ',
+    accessor: 'gamesPlayed',
+    Cell: ({ value }) => (
+      <span className="text-gray-600">{value}</span>
+    ),
+    disableSortBy: true
+  },
+  {
+    Header: 'PG',
+    accessor: 'won',
+    Cell: ({ value }) => (
+      <span className="text-gray-600">{value}</span>
+    ),
+    disableSortBy: true
+  },
+  {
+    Header: 'PE',
+    accessor: 'drawn',
+    Cell: ({ value }) => (
+      <span className="text-gray-600">{value}</span>
+    ),
+    disableSortBy: true
+  },
+  {
+    Header: 'PP',
+    accessor: 'lost',
+    Cell: ({ value }) => (
+      <span className="text-gray-600">{value}</span>
+    ),
+    disableSortBy: true
+  },
+  {
+    Header: 'DG',
     accessor: 'goalDifference',
     Cell: ({ value }) => (
       <span className={`font-medium ${value > 0 ? 'text-green-600' : value < 0 ? 'text-red-600' : 'text-gray-600'}`}>
@@ -57,15 +89,7 @@ const columns = [
     disableSortBy: true
   },
   {
-    Header: 'Games',
-    accessor: 'gamesPlayed',
-    Cell: ({ value }) => (
-      <span className="text-gray-600">{value}</span>
-    ),
-    disableSortBy: true
-  },
-  {
-    Header: 'Goals For:Against',
+    Header: 'GF:GC',
     accessor: 'goalsForAgainst',
     Cell: ({ value }) => (
       <span className="text-gray-600">{value}</span>
@@ -131,8 +155,8 @@ const TableView = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">
-          League Table
-          <div className="mt-2 text-sm font-normal text-gray-500">Season 2023/24</div>
+          Tabla de Posiciones
+          <div className="mt-2 text-sm font-normal text-gray-500">Temporada 2023/24</div>
         </h1>
         
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -208,13 +232,13 @@ const TableView = () => {
           <div className="bg-gradient-to-r from-amber-50/80 to-amber-100/30 p-4 rounded-lg shadow-sm">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-amber-300/70 rounded"></div>
-              <span className="font-semibold text-gray-800">Gold Cup Qualification (Positions 1-4)</span>
+              <span className="font-semibold text-gray-800">Clasificación Copa Oro (Posiciones 1-4)</span>
             </div>
           </div>
           <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 p-4 rounded-lg shadow-sm">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-gray-400 rounded"></div>
-              <span className="font-semibold text-gray-800">Silver Cup Qualification (Positions 5-8)</span>
+              <span className="font-semibold text-gray-800">Clasificación Copa Plata (Posiciones 5-8)</span>
             </div>
           </div>
         </div>

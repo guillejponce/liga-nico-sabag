@@ -1,90 +1,116 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTeamPlayers } from '../../hooks/players/useTeamPlayers';
-import { Goal, AlertTriangle, Clock, Loader2 } from 'lucide-react';
-import { updateMatch } from '../../hooks/admin/matchHandlers';
+import { 
+  Goal, 
+  AlertTriangle, 
+  UserMinus, 
+  Trophy,
+  Loader2 
+} from 'lucide-react';
+import { createEvent, deleteEvent, fetchEvents } from '../../hooks/admin/matchEventHandlers';
 
 const EVENT_TYPES = {
-  GOAL: 'Goal',
-  YELLOW_CARD: 'Yellow Card',
-  RED_CARD: 'Red Card',
-  SUBSTITUTION: 'Substitution',
-  OWN_GOAL: 'Own Goal',
-  PENALTY: 'Penalty'
+  GOAL: 'goal',
+  YELLOW_CARD: 'yellow_card',
+  RED_CARD: 'red_card',
+  SUBSTITUTION: 'substitution',
+  OWN_GOAL: 'own_goal',
+  PENALTY: 'penalty'
+};
+
+const getEventIcon = (type) => {
+  switch (type.toLowerCase()) {
+    case 'goal':
+    case 'penalty':
+      return <Goal className="w-5 h-5 text-green-600" />;
+    case 'own_goal':
+      return <Goal className="w-5 h-5 text-red-600" />;
+    case 'yellow_card':
+      return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+    case 'red_card':
+      return <AlertTriangle className="w-5 h-5 text-red-600" />;
+    case 'substitution':
+      return <UserMinus className="w-5 h-5 text-blue-500" />;
+    default:
+      return <Trophy className="w-5 h-5 text-gray-500" />;
+  }
+};
+
+const getEventLabel = (type) => {
+  const labels = {
+    goal: 'Goal',
+    penalty: 'Penalty Goal',
+    own_goal: 'Own Goal',
+    yellow_card: 'Yellow Card',
+    red_card: 'Red Card',
+    substitution: 'Substitution'
+  };
+  return labels[type.toLowerCase()] || type;
 };
 
 const EditMatchEventsModal = ({ match, matchdayIndex, matchIndex, onClose, updateMatchEvents }) => {
   const { players: homePlayers, loading: homeLoading } = useTeamPlayers(match.home_team_id);
   const { players: awayPlayers, loading: awayLoading } = useTeamPlayers(match.away_team_id);
-  const [selectedTeam, setSelectedTeam] = useState('home');
+  const [selectedTeam, setSelectedTeam] = useState('');
   const [eventType, setEventType] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState('');
-  const [minute, setMinute] = useState('');
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const fetchedEvents = await fetchEvents(match.id);
+        setEvents(fetchedEvents);
+      } catch (error) {
+        console.error('Error loading events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, [match.id]);
 
   const addEvent = async () => {
-    if (!eventType || !selectedPlayer || !minute) return;
-    
-    const newEvent = {
-      id: Date.now(),
-      type: eventType,
-      player: selectedPlayer,
-      minute: parseInt(minute, 10),
-      team: selectedTeam
-    };
-    
-    const updatedEvents = [...(match.events || []), newEvent].sort((a, b) => a.minute - b.minute);
+    if (!eventType || !selectedPlayer) return;
     
     try {
-      // Update the match in the database with the new events
-      await updateMatch(match.id, {
-        ...match,
-        events: updatedEvents
-      });
+      const eventData = {
+        type: eventType,
+        player: selectedPlayer,
+        match: match.id
+      };
       
-      // Update local state
-      updateMatchEvents(matchdayIndex, matchIndex, updatedEvents);
+      await createEvent(eventData);
+      // Fetch updated events list immediately after creation
+      const updatedEvents = await fetchEvents(match.id);
+      setEvents(updatedEvents);
       
       // Reset form
       setEventType('');
       setSelectedPlayer('');
-      setMinute('');
+      setSelectedTeam('');
     } catch (error) {
       console.error('Error adding event:', error);
     }
   };
-  
+
   const removeEvent = async (eventId) => {
     try {
-      const updatedEvents = (match.events || []).filter(event => event.id !== eventId);
-      
-      // Update the match in the database with the filtered events
-      await updateMatch(match.id, {
-        ...match,
-        events: updatedEvents
-      });
-      
-      // Update local state
-      updateMatchEvents(matchdayIndex, matchIndex, updatedEvents);
+      await deleteEvent(eventId);
+      // Refresh the events list after deletion
+      const updatedEvents = await fetchEvents(match.id);
+      setEvents(updatedEvents);
     } catch (error) {
       console.error('Error removing event:', error);
     }
   };
 
-  const getEventIcon = (type) => {
-    switch (type) {
-      case EVENT_TYPES.GOAL:
-      case EVENT_TYPES.PENALTY:
-      case EVENT_TYPES.OWN_GOAL:
-        return <Goal className="w-4 h-4" />;
-      case EVENT_TYPES.YELLOW_CARD:
-      case EVENT_TYPES.RED_CARD:
-        return <AlertTriangle className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
-    }
-  };
-
-  const currentPlayers = selectedTeam === 'home' ? homePlayers : awayPlayers;
-  const isLoading = selectedTeam === 'home' ? homeLoading : awayLoading;
+  const currentPlayers = selectedTeam === match.home_team_id ? homePlayers : 
+                        selectedTeam === match.away_team_id ? awayPlayers : [];
+  const isLoading = selectedTeam === match.home_team_id ? homeLoading : 
+                    selectedTeam === match.away_team_id ? awayLoading : false;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -92,7 +118,7 @@ const EditMatchEventsModal = ({ match, matchdayIndex, matchIndex, onClose, updat
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">
-              Match Events: {match.homeTeam} vs {match.awayTeam}
+              Match Events: {match.home_team} vs {match.away_team}
             </h2>
             <button 
               onClick={onClose}
@@ -104,40 +130,70 @@ const EditMatchEventsModal = ({ match, matchdayIndex, matchIndex, onClose, updat
 
           {/* Events Timeline */}
           <div className="mb-6">
-            <h3 className="font-semibold mb-2">Match Timeline</h3>
-            <div className="space-y-2">
-              {match.events && match.events.length > 0 ? (
-                match.events.map(event => (
+            <h3 className="font-semibold mb-4 text-lg">Match Timeline</h3>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              </div>
+            ) : events.length > 0 ? (
+              <div className="space-y-4">
+                {events.map((event, index) => (
                   <div 
-                    key={event.id} 
-                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                    key={event.id}
+                    className={`relative flex items-center ${
+                      index !== events.length - 1 ? 'pb-4' : ''
+                    }`}
                   >
-                    <div className="flex items-center space-x-3">
-                      <span className="font-mono bg-gray-200 px-2 py-1 rounded">
-                        {event.minute}'
-                      </span>
-                      {getEventIcon(event.type)}
-                      <span className={`font-medium ${
-                        event.team === 'home' ? 'text-blue-600' : 'text-red-600'
-                      }`}>
-                        {event.player}
-                      </span>
-                      <span className="text-gray-500">
-                        {event.type}
-                      </span>
+                    {/* Timeline line */}
+                    {index !== events.length - 1 && (
+                      <div className="absolute left-6 top-8 bottom-0 w-0.5 bg-gray-200" />
+                    )}
+                    
+                    {/* Event card */}
+                    <div className="relative flex items-center w-full bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center space-x-4 w-full">
+                        {/* Icon */}
+                        <div className="p-2 bg-gray-50 rounded-full">
+                          {getEventIcon(event.type)}
+                        </div>
+                        
+                        {/* Event details */}
+                        <div className="flex-grow">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-gray-900">
+                              {event.expand?.player ? 
+                                `${event.expand.player.first_name} ${event.expand.player.last_name}` : 
+                                'Unknown Player'}
+                            </span>
+                            <span className="text-sm text-gray-500">•</span>
+                            <span className="text-sm text-gray-600">
+                              {getEventLabel(event.type)}
+                            </span>
+                          </div>
+                          <span className="text-sm text-gray-500">
+                            {event.expand?.player?.team === match.home_team_id ? match.home_team : match.away_team}
+                          </span>
+                        </div>
+                        
+                        {/* Delete button */}
+                        <button
+                          onClick={() => removeEvent(event.id)}
+                          className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => removeEvent(event.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      Delete
-                    </button>
                   </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-center py-4">No events recorded yet</p>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">No events recorded yet</p>
+              </div>
+            )}
           </div>
 
           {/* Add New Event Form */}
@@ -153,11 +209,12 @@ const EditMatchEventsModal = ({ match, matchdayIndex, matchIndex, onClose, updat
                   value={selectedTeam}
                   onChange={(e) => {
                     setSelectedTeam(e.target.value);
-                    setSelectedPlayer(''); // Reset player when team changes
+                    setSelectedPlayer('');
                   }}
                 >
-                  <option value="home">{match.homeTeam}</option>
-                  <option value="away">{match.awayTeam}</option>
+                  <option value="">Select Team</option>
+                  <option value={match.home_team_id}>{match.home_team}</option>
+                  <option value={match.away_team_id}>{match.away_team}</option>
                 </select>
               </div>
 
@@ -189,36 +246,23 @@ const EditMatchEventsModal = ({ match, matchdayIndex, matchIndex, onClose, updat
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={selectedPlayer}
                     onChange={(e) => setSelectedPlayer(e.target.value)}
+                    disabled={!selectedTeam}
                   >
                     <option value="">Select Player</option>
                     {currentPlayers?.map(player => (
-                      <option key={player.id} value={`${player.first_name} ${player.last_name}`}>
+                      <option key={player.id} value={player.id}>
                         {player.first_name} {player.last_name}
                       </option>
                     ))}
                   </select>
                 )}
               </div>
-
-              {/* Minute Input */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Minute</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="90"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={minute}
-                  onChange={(e) => setMinute(e.target.value)}
-                  placeholder="Match minute"
-                />
-              </div>
             </div>
 
             {/* Add Event Button */}
             <button
               onClick={addEvent}
-              disabled={!eventType || !selectedPlayer || !minute || isLoading}
+              disabled={!eventType || !selectedPlayer || isLoading}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
               Add Event

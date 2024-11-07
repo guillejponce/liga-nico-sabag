@@ -176,6 +176,14 @@ const AdminFixtures = () => {
 
   const handleDeleteMatchday = async (matchdayId) => {
     try {
+      const isConfirmed = window.confirm(
+        "Are you sure you want to delete this matchday? This action cannot be undone and will delete all associated matches and events."
+      );
+
+      if (!isConfirmed) {
+        return; // User cancelled the deletion
+      }
+
       await deleteMatchday(matchdayId);
       setMatchdays(matchdays.filter(matchday => matchday.id !== matchdayId));
     } catch (err) {

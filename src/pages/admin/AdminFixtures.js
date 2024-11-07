@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useTeams } from '../../hooks/teams/useTeams';
-import { Calendar, Trophy, Loader2, Plus } from 'lucide-react';
+import { Calendar, Trophy, Loader2, Plus, Save } from 'lucide-react';
 import AdminMatchEvents from './AdminMatchEvents';
 import { fetchMatchdays, createMatchday, deleteMatchday } from '../../hooks/admin/matchdayHandlers';
 import { fetchMatchesByMatchday, createMatch, updateMatch as updateMatchAPI } from '../../hooks/admin/matchHandlers';
 import { pb } from '../../config';
+import { updateTeamStatistics } from '../../utils/teamsUtils';
+import { toast } from 'react-toastify';
 
 const AdminFixtures = () => {
   const [matchdays, setMatchdays] = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [selectedMatchday, setSelectedMatchday] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [setError] = useState(null);
   const { teams, loading, error: teamsError } = useTeams();
@@ -23,8 +26,11 @@ const AdminFixtures = () => {
         
         if (!mounted) return;
 
+        const sortedMatchdays = fetchedMatchdays.sort((a, b) => b.number - a.number);
+        console.log('Sorted matchdays:', sortedMatchdays);
+
         const matchdaysWithMatches = await Promise.all(
-          fetchedMatchdays.map(async (matchday) => {
+          sortedMatchdays.map(async (matchday) => {
             try {
               const matches = await fetchMatchesByMatchday(matchday.id, controller.signal);
               if (!mounted) return { ...matchday, matches: [] };
@@ -62,13 +68,30 @@ const AdminFixtures = () => {
     };
   }, [setError]);
 
-  const generateMatchday = async () => {
+  const handleCreateMatchday = async () => {
     try {
-      const newMatchday = await createMatchday({ date_time: new Date().toISOString() });
-      setMatchdays([...matchdays, newMatchday]);
-    } catch (err) {
-      console.error('Error creating matchday:', err);
+      const { createdMatchday, updatedMatchdays } = await createMatchday({
+        date_time: new Date().toISOString(),
+      });
+
+      // Transform the matchdays with their matches
+      const matchdaysWithMatches = await Promise.all(
+        updatedMatchdays.map(async (matchday) => {
+          const matches = await fetchMatchesByMatchday(matchday.id);
+          return {
+            ...matchday,
+            matches: matches || [],
+          };
+        })
+      );
+
+      setMatchdays(matchdaysWithMatches);
+      setSelectedMatchday(createdMatchday.id);
+      toast.success('New matchday created successfully');
+    } catch (error) {
+      console.error('Error creating matchday:', error);
       setError('Failed to create matchday. Please try again.');
+      toast.error('Failed to create matchday');
     }
   };
 
@@ -162,6 +185,16 @@ const AdminFixtures = () => {
   const toggleMatchStatus = async (matchdayIndex, matchIndex) => {
     const match = matchdays[matchdayIndex].matches[matchIndex];
     await handleMatchUpdate(matchdayIndex, matchIndex, 'is_finished', !match.is_finished);
+    
+    // If the match is being marked as finished, update team statistics
+    if (!match.is_finished) {
+      try {
+        await updateTeamStatistics(match.matchday);
+      } catch (error) {
+        console.error('Error updating team statistics:', error);
+        setError('Failed to update team statistics. Please try again.');
+      }
+    }
   };
 
   const openEditEventsModal = (matchdayIndex, matchIndex) => {
@@ -233,6 +266,26 @@ const AdminFixtures = () => {
     }
   };
 
+  const handleSaveMatchday = async () => {
+    try {
+      console.log('Starting team statistics update');
+      
+      // Update all team statistics
+      const result = await updateTeamStatistics();
+      
+      if (result) {
+        console.log('Team statistics updated successfully');
+        toast.success('Team statistics updated successfully');
+      } else {
+        console.log('No updates were necessary');
+        toast.info('No finished matches to update');
+      }
+    } catch (error) {
+      console.error('Error updating team statistics:', error);
+      toast.error('Failed to update team statistics');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -262,7 +315,7 @@ const AdminFixtures = () => {
             <h1 className="text-3xl font-bold text-white">Match Schedule Manager</h1>
           </div>
           <button 
-            onClick={generateMatchday}
+            onClick={handleCreateMatchday}
             className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200"
           >
             <Calendar className="w-5 h-5" />
@@ -284,6 +337,13 @@ const AdminFixtures = () => {
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Match</span>
+                </button>
+                <button
+                  onClick={() => handleSaveMatchday(matchday.id)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save</span>
                 </button>
                 <button
                   onClick={() => handleDeleteMatchday(matchday.id)}

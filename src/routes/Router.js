@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Home from '../pages/Home';
 import Teams from '../pages/Teams';
 import Schedule from '../pages/Schedule';
@@ -25,12 +25,13 @@ const AppRoutes = () => {
       <Route path="/admin/login" element={<Login />} />
 
       {/* Protected admin routes */}
-      <Route path="/admin" element={<ProtectedRoute />}>
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="teams" element={<AdminTeams />} />
-        <Route path="players" element={<AdminPlayers />} />
-        <Route path="fixtures" element={<AdminFixtures />} />
-        <Route path="sanctions" element={<AdminSanctions />} />
+      <Route element={<ProtectedRoute />}> {/* Remove the path="/admin" from here */}
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} /> {/* Add this line */}
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/teams" element={<AdminTeams />} />
+        <Route path="/admin/players" element={<AdminPlayers />} />
+        <Route path="/admin/fixtures" element={<AdminFixtures />} />
+        <Route path="/admin/sanctions" element={<AdminSanctions />} />
       </Route>
     </Routes>
   );

@@ -28,7 +28,7 @@ const Navbar = () => {
     return () => {
       document.removeEventListener('scroll', handleScroll);
     };
-  }, [location]);
+  }, [location.pathname]);
 
   const isHome = location.pathname === '/';
 
@@ -39,7 +39,7 @@ const Navbar = () => {
     { to: '/table', label: 'Posiciones' },
     { to: '/stats', label: 'Estadísticas' },
     { to: '/sanctions', label: 'Tribunal' },
-    { to: '/admin', label: 'Admin Login' },
+    { to: '/admin', label: 'Admin' },
   ];
 
   return (
@@ -52,9 +52,13 @@ const Navbar = () => {
             <Link to="/" className="flex-shrink-0">
               <img className="h-8 w-8 object-contain" src={logo} alt="Nico Sabag League Logo" />
             </Link>
-            <h1 className={`ml-3 text-lg font-semibold ${
-              isTransparent && isHome ? 'text-white' : 'text-text-light'
-            }`}>Liga Nico Sabag</h1>
+            <Link to="/">
+              <h1 className={`ml-3 text-lg font-semibold ${
+                isTransparent && isHome ? 'text-white' : 'text-text-light'
+              }`}>
+                Liga Nico Sabag
+              </h1>
+            </Link>
           </div>
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-4">

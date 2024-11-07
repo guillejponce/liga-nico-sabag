@@ -17,6 +17,7 @@ const Navbar = () => {
     { to: '/table', label: 'Posiciones' },
     { to: '/stats', label: 'Estadísticas' },
     { to: '/sanctions', label: 'Tribunal' },
+    { to: '/admin', label: 'Admin Login' },
   ];
 
   return (

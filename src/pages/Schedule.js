@@ -3,6 +3,8 @@ import { Calendar, Clock, Trophy } from 'lucide-react';
 import { pb } from '../config';
 import { fetchMatchdays } from '../hooks/admin/matchdayHandlers';
 import { fetchMatchesByMatchday } from '../hooks/admin/matchHandlers';
+import { useTeams } from '../hooks/teams/useTeams';
+import { getFreeTeams } from '../utils/matchUtils';
 
 const TeamDisplay = ({ team, isHome }) => {
   return (
@@ -172,6 +174,7 @@ const Schedule = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const { teams } = useTeams();
 
   useEffect(() => {
     let mounted = true;
@@ -241,6 +244,9 @@ const Schedule = () => {
     );
   }
 
+  const activeMatchdayData = matchdays.find((matchday) => matchday.id === activeMatchday);
+  const freeTeams = getFreeTeams(activeMatchdayData, teams);
+
   return (
     <div className="bg-body min-h-screen">
       <div className="container mx-auto px-4 py-8">
@@ -262,6 +268,39 @@ const Schedule = () => {
             </button>
           ))}
         </div>
+
+        {/* Free Teams Card */}
+        {freeTeams.length > 0 && (
+          <div className="mb-6 bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 text-gray-600 mb-3">
+              <Calendar className="w-4 h-4" />
+              <span className="text-sm font-medium">Equipos libres esta jornada</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {freeTeams.map(team => (
+                <div 
+                  key={team.id} 
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-full text-sm"
+                >
+                  <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                    {team.logo ? (
+                      <img
+                        src={pb.getFileUrl(team, team.logo)}
+                        alt={team.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-medium">
+                        {team.name.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-gray-700">{team.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Matches for the selected matchday */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

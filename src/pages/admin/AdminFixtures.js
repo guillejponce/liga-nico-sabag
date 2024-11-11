@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTeams } from '../../hooks/teams/useTeams';
-import { Calendar, Trophy, Loader2, Plus, Save } from 'lucide-react';
+import { Calendar, Trophy, Loader2, Plus, Save, Clock } from 'lucide-react';
 import AdminMatchEvents from './AdminMatchEvents';
 import { fetchMatchdays, createMatchday, deleteMatchday } from '../../hooks/admin/matchdayHandlers';
 import { fetchMatchesByMatchday, createMatch, updateMatch as updateMatchAPI } from '../../hooks/admin/matchHandlers';
@@ -502,6 +502,48 @@ const AdminFixtures = () => {
                           >
                             Edit Match Events
                           </button>
+                        </div>
+
+                        <div className="mt-4 flex justify-center items-center space-x-4 bg-gray-100 p-4 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="w-5 h-5 text-gray-500" />
+                            <input
+                              type="date"
+                              className="p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+                              value={match.date_time ? new Date(match.date_time).toISOString().split('T')[0] : ''}
+                              onChange={(e) => {
+                                const currentTime = match.date_time 
+                                  ? new Date(match.date_time).toLocaleTimeString('en-GB')
+                                  : '00:00';
+                                const newDateTime = new Date(`${e.target.value}T${currentTime}`);
+                                handleMatchUpdate(mdIndex, matchIndex, 'date_time', newDateTime.toISOString());
+                              }}
+                              disabled={match.is_finished}
+                            />
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Clock className="w-5 h-5 text-gray-500" />
+                            <input
+                              type="time"
+                              className="p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+                              value={match.date_time ? 
+                                new Date(match.date_time).toLocaleTimeString('en-GB', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  hour12: false 
+                                }) : 
+                                ''
+                              }
+                              onChange={(e) => {
+                                const currentDate = match.date_time 
+                                  ? new Date(match.date_time).toISOString().split('T')[0]
+                                  : new Date().toISOString().split('T')[0];
+                                const newDateTime = new Date(`${currentDate}T${e.target.value}:00`);
+                                handleMatchUpdate(mdIndex, matchIndex, 'date_time', newDateTime.toISOString());
+                              }}
+                              disabled={match.is_finished}
+                            />
+                          </div>
                         </div>
                       </div>
                     )}

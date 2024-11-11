@@ -8,6 +8,7 @@ import {
   Loader2 
 } from 'lucide-react';
 import { createEvent, deleteEvent, fetchEvents } from '../../hooks/admin/matchEventHandlers';
+import { updatePlayerStatistics } from '../../utils/playersUtils';
 
 const EVENT_TYPES = {
   GOAL: 'goal',
@@ -91,6 +92,9 @@ const EditMatchEventsModal = ({ match, matchdayIndex, matchIndex, onClose, updat
       setEventType('');
       setSelectedPlayer('');
       setSelectedTeam('');
+
+      // Update player statistics
+      await updatePlayerStatistics();
     } catch (error) {
       console.error('Error adding event:', error);
     }

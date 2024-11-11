@@ -12,6 +12,7 @@ import AdminPlayers from '../pages/admin/AdminPlayers';
 import AdminFixtures from '../pages/admin/AdminFixtures';
 import AdminSanctions from '../pages/admin/AdminSanctions';
 import ProtectedRoute from '../components/admin/ProtectedRoute';
+import PlayerStatistics from '../pages/PlayerStatistics';
 
 const AppRoutes = () => {
   return (
@@ -21,6 +22,7 @@ const AppRoutes = () => {
       <Route path="/teams" element={<Teams />} />
       <Route path="/schedule" element={<Schedule />} />
       <Route path="/table" element={<Table />} />
+      <Route path="/stats" element={<PlayerStatistics />} />
       <Route path="/teams/:teamId" element={<TeamDetails />} />
       <Route path="/admin/login" element={<Login />} />
 

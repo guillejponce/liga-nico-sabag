@@ -1,8 +1,88 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Calendar } from 'lucide-react';
+import { pb } from '../config';
+import { fetchMatchdays } from '../hooks/admin/matchdayHandlers';
+import { fetchMatchesByMatchday } from '../hooks/admin/matchHandlers';
+import { fetchAllTeamsOfTheWeek } from '../hooks/admin/teamOfTheWeekHandlers';
+import SoccerPitch from '../components/teams/SoccerPitch';
 import backgroundImage from '../assets/images/homepage/landing.jpg';
 
 const Home = () => {
+  const [latestTeamOfWeek, setLatestTeamOfWeek] = useState(null);
+  const [nextMatchday, setNextMatchday] = useState(null);
+  const [nextMatches, setNextMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load team of the week
+        const teams = await fetchAllTeamsOfTheWeek();
+        if (teams.length > 0) {
+          const latest = teams.reduce((prev, current) => {
+            return (prev.expand.matchday.number > current.expand.matchday.number) ? prev : current;
+          });
+          setLatestTeamOfWeek(latest);
+        }
+
+        // Load next matchday
+        const matchdays = await fetchMatchdays();
+        const today = new Date();
+        const nextMatchday = matchdays.find(md => new Date(md.date) > today) || matchdays[0];
+        setNextMatchday(nextMatchday);
+
+        if (nextMatchday) {
+          const matches = await fetchMatchesByMatchday(nextMatchday.id);
+          setNextMatches(matches);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const formatTeamOfWeekPlayers = (team) => {
+    if (!team) return [];
+    return [1, 2, 3, 4, 5, 6, 7].map(num => ({
+      position: num,
+      firstName: team.expand[`player${num}`]?.first_name || '',
+      lastName: team.expand[`player${num}`]?.last_name || '',
+      expand: {
+        team: {
+          id: team.expand[`player${num}`]?.expand?.team?.id,
+          name: team.expand[`player${num}`]?.expand?.team?.name,
+          logo: team.expand[`player${num}`]?.expand?.team?.logo,
+          collectionId: 'teams',
+          collectionName: 'teams'
+        }
+      }
+    }));
+  };
+
+  const TeamDisplay = ({ team }) => (
+    <div className="flex items-center space-x-2">
+      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100">
+        {team?.logo ? (
+          <img
+            src={pb.getFileUrl(team, team.logo)}
+            alt={team.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400">
+            {team?.name?.charAt(0)}
+          </div>
+        )}
+      </div>
+      <span className="font-medium">{team?.name || 'TBD'}</span>
+    </div>
+  );
+
   const latestNews = [
     { id: 1, title: 'Nuevo récord de goles en la liga', date: '2024-10-01' },
     { id: 2, title: 'Equipo revelación lidera la tabla', date: '2024-09-28' },
@@ -37,31 +117,83 @@ const Home = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Two-column layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          {/* Latest News Column */}
-          <section>
-            <h2 className="text-2xl font-semibold mb-4 text-text">Últimas Noticias</h2>
-            <ul className="space-y-2">
-              {latestNews.map((news) => (
-                <li key={news.id} className="bg-body p-4 rounded shadow">
-                  <h3 className="font-medium text-text">{news.title}</h3>
-                  <p className="text-sm text-text-dark">{news.date}</p>
-                </li>
-              ))}
-            </ul>
+          {/* Team of the Week Section */}
+          <section className="h-full">
+            <h2 className="text-2xl font-semibold mb-4 text-text">Equipo de la Semana</h2>
+            {loading ? (
+              <div className="bg-white p-4 rounded-lg shadow animate-pulse h-[450px]">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            ) : latestTeamOfWeek ? (
+              <div className="bg-white rounded-xl overflow-hidden shadow-lg h-[450px] flex flex-col">
+                <div className="bg-gradient-to-r from-green-600 to-green-700 p-3">
+                  <h3 className="text-lg font-semibold text-white text-center">
+                    Jornada {latestTeamOfWeek.expand.matchday.number}
+                  </h3>
+                </div>
+                <div className="flex-1 p-3 flex flex-col">
+                  <div className="flex-1 relative">
+                    <SoccerPitch
+                      formation={latestTeamOfWeek.formation}
+                      players={formatTeamOfWeekPlayers(latestTeamOfWeek)}
+                      expanded={true}
+                      compact={true}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-4 rounded-lg shadow text-center text-gray-500 h-[450px] flex items-center justify-center">
+                No hay equipo de la semana disponible
+              </div>
+            )}
           </section>
 
-          {/* Featured Match Column */}
-          <section>
-            <h2 className="text-2xl font-semibold mb-4 text-text">Próximo Partido Destacado</h2>
-            <div className="bg-body p-6 rounded shadow text-center">
-              <p className="text-xl mb-2 text-text">{featuredMatch.team1} vs {featuredMatch.team2}</p>
-              <p className="text-text-dark">{featuredMatch.date} - {featuredMatch.time}</p>
-              <Link to="/schedule" className="mt-4 inline-block bg-accent text-white px-4 py-2 rounded hover:bg-accent-dark transition duration-300">
-                Ver Fixture Completo
-              </Link>
-            </div>
+          {/* Next Fixtures Section */}
+          <section className="h-full">
+            <h2 className="text-2xl font-semibold mb-4 text-text">Próxima Fecha</h2>
+            {loading ? (
+              <div className="bg-white p-4 rounded-lg shadow animate-pulse h-[450px]">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            ) : nextMatchday ? (
+              <div className="bg-white rounded-xl overflow-hidden shadow-lg h-[450px] flex flex-col">
+                <div className="bg-gradient-to-r from-green-600 to-green-700 p-3">
+                  <div className="flex items-center justify-between text-white">
+                    <h3 className="text-lg font-semibold">Jornada {nextMatchday.number}</h3>
+                    <div className="flex items-center text-sm">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      {new Date(nextMatchday.date).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-1 p-3 flex flex-col">
+                  <div className="flex-1 space-y-3 overflow-y-auto">
+                    {nextMatches.map((match) => (
+                      <div key={match.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <TeamDisplay team={match.expand?.home_team} />
+                        <div className="flex-shrink-0 w-16 text-center">
+                          <span className="text-sm font-bold text-gray-400">VS</span>
+                        </div>
+                        <TeamDisplay team={match.expand?.away_team} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-3 mt-3 border-t text-right">
+                    <Link to="/schedule" className="text-accent hover:text-accent-dark text-sm font-medium">
+                      Ver calendario completo →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-4 rounded-lg shadow text-center text-gray-500 h-[450px] flex items-center justify-center">
+                No hay próximos partidos programados
+              </div>
+            )}
           </section>
         </div>
 

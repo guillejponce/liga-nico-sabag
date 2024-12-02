@@ -11,6 +11,7 @@ import AdminTeams from '../pages/admin/AdminTeams';
 import AdminPlayers from '../pages/admin/AdminPlayers';
 import AdminFixtures from '../pages/admin/AdminFixtures';
 import AdminSanctions from '../pages/admin/AdminSanctions';
+import AdminTeamOfTheWeek from '../pages/admin/AdminTeamOfTheWeek';
 import ProtectedRoute from '../components/admin/ProtectedRoute';
 import PlayerStatistics from '../pages/PlayerStatistics';
 
@@ -33,6 +34,7 @@ const AppRoutes = () => {
         <Route path="/admin/teams" element={<AdminTeams />} />
         <Route path="/admin/players" element={<AdminPlayers />} />
         <Route path="/admin/fixtures" element={<AdminFixtures />} />
+        <Route path="/admin/team-of-week" element={<AdminTeamOfTheWeek />} />
         <Route path="/admin/sanctions" element={<AdminSanctions />} />
       </Route>
     </Routes>

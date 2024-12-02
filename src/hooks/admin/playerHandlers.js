@@ -9,7 +9,7 @@ const getHeaders = () => {
   };
 };
 
-export const fetchPlayers = async (searchFilter = '', teamFilter = '') => {
+export const fetchPlayers = async (searchFilter = '', teamFilter = '', signal) => {
   try {
     let filter = '';
     if (searchFilter) {
@@ -20,22 +20,19 @@ export const fetchPlayers = async (searchFilter = '', teamFilter = '') => {
     }
 
     const resultList = await pb.collection('players').getList(1, 50, {
-      headers: getHeaders(), // Add headers with bearer token
+      headers: getHeaders(),
       filter,
       sort: '-created',
       expand: 'team',
-    });
-    console.log('Fetched players:', resultList);
-
-    const teamMap = {};
-    resultList.items.forEach(player => {
-      if (player.expand && player.expand.team) {
-        teamMap[player.team] = player.expand.team.name;
-      }
+      $cancelKey: 'players-fetch',
+      signal,
     });
 
-    return { players: resultList.items, teams: teamMap };
+    return { players: resultList.items, teams: {} };
   } catch (err) {
+    if (err.message?.includes('autocancelled')) {
+      return { players: [], teams: {} };
+    }
     console.error('Error fetching players:', err);
     throw new Error('Failed to fetch players. Please try again.');
   }
@@ -43,43 +40,37 @@ export const fetchPlayers = async (searchFilter = '', teamFilter = '') => {
 
 export const createPlayer = async (playerData) => {
   try {
-    console.log('Received player data in createPlayer:', playerData);
-
-    if (!playerData) {
-      throw new Error('Player data is null or undefined');
+    // Check if user is authenticated and is admin
+    if (!pb.authStore.isValid) {
+      throw new Error('No estás autenticado. Por favor, inicia sesión.');
     }
 
-    const requiredFields = ['rut', 'team', 'first_name', 'last_name'];
-    for (const field of requiredFields) {
-      if (!playerData[field]) {
-        throw new Error(`${field} is required and cannot be empty`);
-      }
-    }
+    // Log the current user's role for debugging
+    console.log('Current user:', pb.authStore.model);
+    console.log('Is admin?', pb.authStore.model?.role === 'admin');
 
-    console.log('JSON being sent in the request:', JSON.stringify(playerData, null, 2));
-
-    const createdPlayer = await pb.collection('players').create(playerData, {
-      headers: getHeaders(), // Add headers with bearer token
-    });
-    console.log('Player created successfully:', createdPlayer);
+    // Create the player record
+    const createdPlayer = await pb.collection('players').create(playerData);
+    console.log('Player created:', createdPlayer);
+    
     return createdPlayer;
   } catch (err) {
-    console.error('Error in createPlayer:', err);
-    if (err.response) {
-      console.error('Response data:', err.response.data);
-      console.error('Response status:', err.response.status);
-      console.error('Response headers:', err.response.headers);
-    } else if (err.request) {
-      console.error('No response received:', err.request);
-    } else {
-      console.error('Error message:', err.message);
-    }
-    throw new Error(`Failed to create player: ${err.message}`);
+    console.error('Error creating player:', err);
+    throw new Error(`Error al crear jugador: ${err.message}`);
   }
 };
 
 export const updatePlayer = async (id, playerData) => {
   try {
+    // Check if user is authenticated and is admin
+    if (!pb.authStore.isValid) {
+      throw new Error('No estás autenticado. Por favor, inicia sesión.');
+    }
+
+    // Log the current user's role for debugging
+    console.log('Current user:', pb.authStore.model);
+    console.log('Is admin?', pb.authStore.model?.role === 'admin');
+
     // Ensure numeric fields are converted to numbers
     const formattedData = {
       ...playerData,
@@ -89,27 +80,32 @@ export const updatePlayer = async (id, playerData) => {
       man_of_the_match: Number(playerData.man_of_the_match),
     };
 
-    const updatedPlayer = await pb.collection('players').update(id, formattedData, {
-      headers: getHeaders(), // Add headers with bearer token
-    });
+    const updatedPlayer = await pb.collection('players').update(id, formattedData);
     console.log('Updated player:', updatedPlayer);
     return updatedPlayer;
   } catch (err) {
     console.error('Error updating player:', err);
-    throw new Error(`Failed to update player: ${err.message}`);
+    throw new Error(`Error al actualizar jugador: ${err.message}`);
   }
 };
 
 export const deletePlayer = async (id) => {
   try {
-    await pb.collection('players').delete(id, {
-      headers: getHeaders(), // Add headers with bearer token
-    });
+    // Check if user is authenticated and is admin
+    if (!pb.authStore.isValid) {
+      throw new Error('No estás autenticado. Por favor, inicia sesión.');
+    }
+
+    // Log the current user's role for debugging
+    console.log('Current user:', pb.authStore.model);
+    console.log('Is admin?', pb.authStore.model?.role === 'admin');
+
+    await pb.collection('players').delete(id);
     console.log('Deleted player with ID:', id);
     return true;
   } catch (err) {
     console.error('Error deleting player:', err);
-    throw new Error(`Failed to delete player: ${err.message}`);
+    throw new Error(`Error al eliminar jugador: ${err.message}`);
   }
 };
 

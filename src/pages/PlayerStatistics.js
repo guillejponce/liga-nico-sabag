@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Goal, AlertTriangle } from 'lucide-react';
+import { Goal, AlertTriangle, Users } from 'lucide-react';
 import { pb } from '../config';
+import SoccerPitch from '../components/teams/SoccerPitch';
+import { FORMATIONS } from '../hooks/admin/teamOfTheWeekHandlers';
 
 const TABS = {
   GOALS: 'goals',
   YELLOW_CARDS: 'yellow',
-  RED_CARDS: 'red'
+  RED_CARDS: 'red',
+  TEAM_OF_WEEK: 'team_of_week'
 };
 
 const PlayerStatistics = () => {
   const [activeTab, setActiveTab] = useState(TABS.GOALS);
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [matchdays, setMatchdays] = useState([]);
+  const [teamsOfWeek, setTeamsOfWeek] = useState([]);
 
   useEffect(() => {
     const loadPlayers = async () => {
@@ -32,6 +37,66 @@ const PlayerStatistics = () => {
     loadPlayers();
   }, [activeTab]);
 
+  useEffect(() => {
+    const loadMatchdays = async () => {
+      try {
+        const records = await pb.collection('matchdays').getFullList({
+          sort: '-number'
+        });
+        setMatchdays(records);
+      } catch (error) {
+        if (!error.message?.includes('autocancelled')) {
+          console.error('Error loading matchdays:', error);
+        }
+      }
+
+      return () => {
+        pb.cancelAllRequests();
+      };
+    };
+
+    loadMatchdays();
+  }, []);
+
+  useEffect(() => {
+    const loadTeamsOfWeek = async () => {
+      if (activeTab !== TABS.TEAM_OF_WEEK) return;
+      
+      try {
+        setLoading(true);
+        const teamsPromises = matchdays
+          .sort((a, b) => b.number - a.number)
+          .map(matchday => 
+            pb.collection('team_of_the_week')
+              .getFirstListItem(`matchday="${matchday.id}"`, {
+                expand: 'player1.team,player2.team,player3.team,player4.team,player5.team,player6.team,player7.team,matchday'
+              })
+              .then(record => ({
+                ...record,
+                formation: record.formation || '4-2-1' // Default formation if none is set
+              }))
+              .catch(() => null)
+          );
+
+        const results = await Promise.all(teamsPromises);
+        const teamsWithMatchdays = results.map((team, index) => ({
+          team,
+          matchday: matchdays[index]
+        })).filter(({ team }) => team !== null);
+
+        setTeamsOfWeek(teamsWithMatchdays);
+      } catch (error) {
+        if (!error.message?.includes('autocancelled')) {
+          console.error('Error loading teams of the week:', error);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTeamsOfWeek();
+  }, [matchdays, activeTab]);
+
   const getSortField = (tab) => {
     switch (tab) {
       case TABS.GOALS:
@@ -45,7 +110,64 @@ const PlayerStatistics = () => {
     }
   };
 
+  const formatTeamOfWeekPlayers = (teamOfWeek) => {
+    if (!teamOfWeek) return [];
+    return [1, 2, 3, 4, 5, 6, 7].map(num => ({
+      position: num,
+      firstName: teamOfWeek.expand[`player${num}`]?.first_name || '',
+      lastName: teamOfWeek.expand[`player${num}`]?.last_name || '',
+      expand: {
+        team: {
+          id: teamOfWeek.expand[`player${num}`]?.expand?.team?.id,
+          name: teamOfWeek.expand[`player${num}`]?.expand?.team?.name,
+          logo: teamOfWeek.expand[`player${num}`]?.expand?.team?.logo,
+          collectionId: '6hkvwfswk61t3b1',
+          collectionName: 'teams'
+        }
+      }
+    }));
+  };
+
+  const renderTeamOfWeek = () => {
+    if (matchdays.length === 0) {
+      return <div className="text-center py-8">No matchdays available</div>;
+    }
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-2">
+        {teamsOfWeek.map(({ team: teamOfWeek, matchday }) => {
+          if (!teamOfWeek) {
+            return (
+              <div key={matchday.id} className="bg-white rounded-lg p-3 shadow">
+                <h3 className="text-base font-semibold mb-2">Matchday {matchday.number}</h3>
+                <p className="text-sm text-gray-500">No team of the week selected</p>
+              </div>
+            );
+          }
+
+          return (
+            <div key={matchday.id} className="bg-white rounded-lg p-3 shadow flex flex-col">
+              <h3 className="text-base font-semibold mb-2 text-center">Matchday {matchday.number}</h3>
+              <div className="flex-1" style={{ height: '400px', minHeight: '400px' }}>
+                <SoccerPitch
+                  formation={teamOfWeek.formation || '4-2-1'}
+                  players={formatTeamOfWeekPlayers(teamOfWeek)}
+                  expanded={true}
+                  compact={true}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const getTabContent = () => {
+    if (activeTab === TABS.TEAM_OF_WEEK) {
+      return renderTeamOfWeek();
+    }
+    
     const filteredPlayers = players.filter(player => {
       switch (activeTab) {
         case TABS.GOALS:
@@ -155,6 +277,17 @@ const PlayerStatistics = () => {
               >
                 <AlertTriangle className="w-5 h-5 inline-block mr-2" />
                 Tarjetas Rojas
+              </button>
+              <button
+                onClick={() => setActiveTab(TABS.TEAM_OF_WEEK)}
+                className={`px-3 py-4 text-sm font-medium border-b-2 ${
+                  activeTab === TABS.TEAM_OF_WEEK
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Users className="w-5 h-5 inline-block mr-2" />
+                Equipo de la Semana
               </button>
             </nav>
           </div>

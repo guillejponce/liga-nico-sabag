@@ -31,6 +31,7 @@ export const createMatchday = async (matchdayData) => {
       ...matchdayData,
       number: nextNumber,
       matches: [], // Initialize with empty matches array
+      phase: matchdayData.phase || 'regular', // Default to 'regular' if not provided
     };
 
     const createdMatchday = await pb.collection('matchdays').create(newMatchdayData);

@@ -24,16 +24,16 @@ export const updateTeamStatistics = async () => {
     await Promise.all(resetPromises);
     console.log('All team statistics reset to zero');
 
-    // 2. Fetch ALL finished matches from ALL matchdays
+    // 2. Fetch ALL finished matches from ALL matchdays that are regular phase
     const matches = await pb.collection('matches').getList(1, 500, {
-      filter: 'is_finished=true',
-      expand: 'home_team,away_team'
+      filter: 'is_finished=true && matchday.phase="regular"',
+      expand: 'home_team,away_team,matchday'
     });
 
-    console.log('Fetched all finished matches:', matches.items);
+    console.log('Fetched all finished regular matches:', matches.items);
 
     if (!matches.items.length) {
-      console.log('No finished matches found');
+      console.log('No finished regular matches found');
       return false;
     }
 

@@ -15,6 +15,7 @@ const AdminFixtures = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [setError] = useState(null);
   const { teams, loading, error: teamsError } = useTeams();
+  const [newMatchdayPhase, setNewMatchdayPhase] = useState('regular');
 
   useEffect(() => {
     let mounted = true;
@@ -72,6 +73,7 @@ const AdminFixtures = () => {
     try {
       const { createdMatchday, updatedMatchdays } = await createMatchday({
         date_time: new Date().toISOString(),
+        phase: newMatchdayPhase,
       });
 
       // Transform the matchdays with their matches
@@ -314,13 +316,26 @@ const AdminFixtures = () => {
             <Trophy className="w-8 h-8 text-yellow-400" />
             <h1 className="text-3xl font-bold text-white">Match Schedule Manager</h1>
           </div>
-          <button 
-            onClick={handleCreateMatchday}
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200"
-          >
-            <Calendar className="w-5 h-5" />
-            <span>Generate New Matchday</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <select
+              value={newMatchdayPhase}
+              onChange={(e) => setNewMatchdayPhase(e.target.value)}
+              className="p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="regular">Regular</option>
+              <option value="gold_semi">Semifinal Oro</option>
+              <option value="gold_final">Final Oro</option>
+              <option value="silver_semi">Semifinal Plata</option>
+              <option value="silver_final">Final Plata</option>
+            </select>
+            <button 
+              onClick={handleCreateMatchday}
+              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200"
+            >
+              <Calendar className="w-5 h-5" />
+              <span>Generate New Matchday</span>
+            </button>
+          </div>
         </div>
 
         {matchdays.map((matchday, mdIndex) => (
@@ -328,7 +343,13 @@ const AdminFixtures = () => {
             <div className="bg-gray-800 text-white p-4 rounded-t-lg flex justify-between items-center">
               <div className="text-2xl font-bold flex items-center space-x-2">
                 <Calendar className="w-6 h-6" />
-                <span>Matchday {matchday.number}</span>
+                <span>
+                  {matchday.phase === 'gold_semi' && 'Semifinal Oro'}
+                  {matchday.phase === 'gold_final' && 'Final Oro'}
+                  {matchday.phase === 'silver_semi' && 'Semifinal Plata'}
+                  {matchday.phase === 'silver_final' && 'Final Plata'}
+                  {!matchday.phase || matchday.phase === 'regular' ? `Jornada ${matchday.number}` : ''}
+                </span>
               </div>
               <div className="flex space-x-2">
                 <button
@@ -413,25 +434,51 @@ const AdminFixtures = () => {
 
                           {/* Score Section */}
                           <div className="flex items-center space-x-4 bg-gray-800 rounded-xl px-6 py-3">
-                            <input
-                              type="number"
-                              placeholder="0"
-                              className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                              value={match.home_team_score || 0}
-                              onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_team_score', parseInt(e.target.value) || 0)}
-                              disabled={match.is_finished}
-                              min="0"
-                            />
+                            <div className="flex flex-col items-center">
+                              <input
+                                type="number"
+                                placeholder="0"
+                                className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                                value={match.home_team_score || 0}
+                                onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_team_score', parseInt(e.target.value) || 0)}
+                                disabled={match.is_finished}
+                                min="0"
+                              />
+                              {(matchday.phase !== 'regular' && match.home_team_score === match.away_team_score) && (
+                                <input
+                                  type="number"
+                                  placeholder="Penales"
+                                  className="w-16 h-8 mt-2 text-center text-sm font-bold bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                                  value={match.home_penalties || 0}
+                                  onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_penalties', parseInt(e.target.value) || 0)}
+                                  disabled={match.is_finished}
+                                  min="0"
+                                />
+                              )}
+                            </div>
                             <span className="text-2xl font-bold text-white">:</span>
-                            <input
-                              type="number"
-                              placeholder="0"
-                              className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                              value={match.away_team_score || 0}
-                              onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'away_team_score', parseInt(e.target.value) || 0)}
-                              disabled={match.is_finished}
-                              min="0"
-                            />
+                            <div className="flex flex-col items-center">
+                              <input
+                                type="number"
+                                placeholder="0"
+                                className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                                value={match.away_team_score || 0}
+                                onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'away_team_score', parseInt(e.target.value) || 0)}
+                                disabled={match.is_finished}
+                                min="0"
+                              />
+                              {(matchday.phase !== 'regular' && match.home_team_score === match.away_team_score) && (
+                                <input
+                                  type="number"
+                                  placeholder="Penales"
+                                  className="w-16 h-8 mt-2 text-center text-sm font-bold bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
+                                  value={match.away_penalties || 0}
+                                  onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'away_penalties', parseInt(e.target.value) || 0)}
+                                  disabled={match.is_finished}
+                                  min="0"
+                                />
+                              )}
+                            </div>
                           </div>
                           {/* Away Team */}
                           <div className="flex-1">

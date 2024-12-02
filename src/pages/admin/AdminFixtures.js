@@ -288,6 +288,40 @@ const AdminFixtures = () => {
     }
   };
 
+  const handleDeleteMatch = async (matchdayIndex, matchIndex) => {
+    try {
+      const match = matchdays[matchdayIndex].matches[matchIndex];
+      
+      const isConfirmed = window.confirm(
+        "Are you sure you want to delete this match? This action cannot be undone."
+      );
+
+      if (!isConfirmed) {
+        return;
+      }
+
+      // Delete the match from PocketBase
+      await pb.collection('matches').delete(match.id);
+
+      // Update local state
+      const updatedMatchdays = matchdays.map((matchday, mdIndex) => {
+        if (mdIndex === matchdayIndex) {
+          return {
+            ...matchday,
+            matches: matchday.matches.filter((_, mIndex) => mIndex !== matchIndex)
+          };
+        }
+        return matchday;
+      });
+
+      setMatchdays(updatedMatchdays);
+      toast.success('Match deleted successfully');
+    } catch (error) {
+      console.error('Error deleting match:', error);
+      toast.error('Failed to delete match');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -532,16 +566,24 @@ const AdminFixtures = () => {
 
                         {/* Match Controls */}
                         <div className="flex justify-between mt-4">
-                          <button
-                            onClick={() => toggleMatchStatus(mdIndex, matchIndex)}
-                            className={`${
-                              match.is_finished
-                                ? 'bg-yellow-500 hover:bg-yellow-600'
-                                : 'bg-blue-500 hover:bg-blue-600'
-                            } text-white font-bold py-2 px-4 rounded`}
-                          >
-                            {match.is_finished ? 'Edit Match' : 'End Match'}
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => toggleMatchStatus(mdIndex, matchIndex)}
+                              className={`${
+                                match.is_finished
+                                  ? 'bg-yellow-500 hover:bg-yellow-600'
+                                  : 'bg-blue-500 hover:bg-blue-600'
+                              } text-white font-bold py-2 px-4 rounded`}
+                            >
+                              {match.is_finished ? 'Edit Match' : 'End Match'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMatch(mdIndex, matchIndex)}
+                              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+                            >
+                              Delete Match
+                            </button>
+                          </div>
                           <button
                             onClick={() => openEditEventsModal(mdIndex, matchIndex)}
                             disabled={!match.home_team || !match.away_team}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { pb } from '../../config';
 
-const TeamBracketDisplay = ({ team, score, penalties, isWinner }) => {
+const TeamBracketDisplay = ({ team, score, penalties, isWinner, showPenalties }) => {
   return (
     <div className={`flex items-center gap-2 p-2 rounded-lg ${isWinner ? 'bg-green-100' : 'bg-white'}`}>
       <div className="w-8 h-8 rounded-full overflow-hidden bg-white shadow-sm flex-shrink-0">
@@ -22,7 +22,7 @@ const TeamBracketDisplay = ({ team, score, penalties, isWinner }) => {
         <span className={`font-bold ${isWinner ? 'text-green-700' : 'text-gray-400'}`}>
           {!team ? '-' : (score !== undefined && score !== null ? score : '-')}
         </span>
-        {team && penalties !== undefined && penalties !== null && (
+        {showPenalties && team && penalties !== undefined && penalties !== null && (
           <span className="text-sm text-gray-500">
             ({penalties})
           </span>
@@ -61,6 +61,12 @@ const Bracket = ({ matches }) => {
         match.away_team_score === null) return null;
     
     if (match.home_team_score === match.away_team_score) {
+      // Si hay empate y no hay penales definidos, no hay ganador
+      if (match.home_penalties === undefined || 
+          match.home_penalties === null ||
+          match.away_penalties === undefined || 
+          match.away_penalties === null) return null;
+        
       // Si hay empate, el ganador se determina por penales
       return match.home_penalties > match.away_penalties ? 
         match.expand?.home_team : match.expand?.away_team;
@@ -87,15 +93,17 @@ const Bracket = ({ matches }) => {
                 <TeamBracketDisplay 
                   team={match.expand?.home_team}
                   score={match.home_team_score}
-                  penalties={match.home_team_penalties}
+                  penalties={match.home_penalties}
                   isWinner={!match.placeholder && getWinner(match)?.id === match.expand?.home_team?.id}
+                  showPenalties={match.home_team_score === match.away_team_score}
                 />
                 <div className="my-2 border-t border-gray-100"></div>
                 <TeamBracketDisplay 
                   team={match.expand?.away_team}
                   score={match.away_team_score}
-                  penalties={match.away_team_penalties}
+                  penalties={match.away_penalties}
                   isWinner={!match.placeholder && getWinner(match)?.id === match.expand?.away_team?.id}
+                  showPenalties={match.home_team_score === match.away_team_score}
                 />
               </div>
             ))}
@@ -109,6 +117,7 @@ const Bracket = ({ matches }) => {
                 score={goldFinal.home_team_score}
                 penalties={goldFinal.home_team_penalties}
                 isWinner={!goldFinal.placeholder && getWinner(goldFinal)?.id === goldFinal.expand?.home_team?.id}
+                showPenalties={goldFinal.home_team_score === goldFinal.away_team_score}
               />
               <div className="my-2 border-t border-gray-100"></div>
               <TeamBracketDisplay 
@@ -116,6 +125,7 @@ const Bracket = ({ matches }) => {
                 score={goldFinal.away_team_score}
                 penalties={goldFinal.away_team_penalties}
                 isWinner={!goldFinal.placeholder && getWinner(goldFinal)?.id === goldFinal.expand?.away_team?.id}
+                showPenalties={goldFinal.home_team_score === goldFinal.away_team_score}
               />
             </div>
           </div>
@@ -137,15 +147,17 @@ const Bracket = ({ matches }) => {
                 <TeamBracketDisplay 
                   team={match.expand?.home_team}
                   score={match.home_team_score}
-                  penalties={match.home_team_penalties}
+                  penalties={match.home_penalties}
                   isWinner={!match.placeholder && getWinner(match)?.id === match.expand?.home_team?.id}
+                  showPenalties={match.home_team_score === match.away_team_score}
                 />
                 <div className="my-2 border-t border-gray-100"></div>
                 <TeamBracketDisplay 
                   team={match.expand?.away_team}
                   score={match.away_team_score}
-                  penalties={match.away_team_penalties}
+                  penalties={match.away_penalties}
                   isWinner={!match.placeholder && getWinner(match)?.id === match.expand?.away_team?.id}
+                  showPenalties={match.home_team_score === match.away_team_score}
                 />
               </div>
             ))}
@@ -159,6 +171,7 @@ const Bracket = ({ matches }) => {
                 score={silverFinal.home_team_score}
                 penalties={silverFinal.home_team_penalties}
                 isWinner={!silverFinal.placeholder && getWinner(silverFinal)?.id === silverFinal.expand?.home_team?.id}
+                showPenalties={silverFinal.home_team_score === silverFinal.away_team_score}
               />
               <div className="my-2 border-t border-gray-100"></div>
               <TeamBracketDisplay 
@@ -166,6 +179,7 @@ const Bracket = ({ matches }) => {
                 score={silverFinal.away_team_score}
                 penalties={silverFinal.away_team_penalties}
                 isWinner={!silverFinal.placeholder && getWinner(silverFinal)?.id === silverFinal.expand?.away_team?.id}
+                showPenalties={silverFinal.home_team_score === silverFinal.away_team_score}
               />
             </div>
           </div>

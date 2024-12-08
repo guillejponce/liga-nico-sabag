@@ -38,7 +38,7 @@ const Navbar = () => {
     { to: '/schedule', label: 'Fixture' },
     { to: '/table', label: 'Posiciones' },
     { to: '/stats', label: 'Estadísticas' },
-    { to: '/sanctions', label: 'Tribunal' },
+    { to: '/editions', label: 'Ediciones' },
     { to: '/admin', label: 'Admin' },
   ];
 

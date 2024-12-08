@@ -6,13 +6,19 @@ import { fetchMatchdays } from '../hooks/admin/matchdayHandlers';
 import { fetchMatchesByMatchday } from '../hooks/admin/matchHandlers';
 import { fetchAllTeamsOfTheWeek } from '../hooks/admin/teamOfTheWeekHandlers';
 import SoccerPitch from '../components/teams/SoccerPitch';
+import { fetchSponsors } from '../hooks/admin/sponsorsHandlers';
 import backgroundImage from '../assets/images/homepage/landing.jpg';
+import { fetchBanners } from '../hooks/admin/bannerHandlers';
+import BannerSlider from '../components/layout/bannerslider';
 
 const Home = () => {
   const [latestTeamOfWeek, setLatestTeamOfWeek] = useState(null);
   const [nextMatchday, setNextMatchday] = useState(null);
   const [nextMatches, setNextMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sponsors, setSponsors] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
   useEffect(() => {
     const loadData = async () => {
@@ -93,8 +99,62 @@ const Home = () => {
       }
     };
 
+    const loadSponsors = async () => {
+      try {
+        const sponsorsData = await fetchSponsors();
+        console.log('Loaded sponsors:', sponsorsData);
+        setSponsors(sponsorsData);
+      } catch (error) {
+        console.error('Error loading sponsors:', error);
+      }
+    };
+
+    const loadBanners = async () => {
+      try {
+        // Get active banners from PocketBase
+        const bannersData = await fetchBanners(true);
+        
+        // Create default banner
+        const defaultBanner = {
+          id: 'default',
+          image: backgroundImage,
+          title: 'Bienvenidos a la Liga Nico Sabag',
+          description: 'Donde la pasión por el fútbol se une con la competencia amistosa',
+          is_active: true
+        };
+
+        // Combine default banner with fetched banners
+        setBanners([defaultBanner, ...bannersData]);
+      } catch (error) {
+        console.error('Error loading banners:', error);
+        // If error, at least show default banner
+        setBanners([{
+          id: 'default',
+          image: backgroundImage,
+          title: 'Bienvenidos a la Liga Nico Sabag',
+          description: 'Donde la pasión por el fútbol se une con la competencia amistosa',
+          is_active: true
+        }]);
+      }
+    };
+
     loadData();
+    loadSponsors();
+    loadBanners();
   }, []);
+
+  // Auto-advance banner every 5 seconds
+  useEffect(() => {
+    if (banners.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((current) => 
+        current === banners.length - 1 ? 0 : current + 1
+      );
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [banners.length]);
 
   const formatTeamOfWeekPlayers = (team) => {
     if (!team) return [];
@@ -132,25 +192,6 @@ const Home = () => {
       <span className="font-medium">{team?.name || 'TBD'}</span>
     </div>
   );
-
-  const latestNews = [
-    { id: 1, title: 'Nuevo récord de goles en la liga', date: '2024-10-01' },
-    { id: 2, title: 'Equipo revelación lidera la tabla', date: '2024-09-28' },
-    { id: 3, title: 'Próximo torneo anunciado para diciembre', date: '2024-09-25' },
-  ];
-
-  const featuredMatch = {
-    team1: 'Ivory Toast',
-    team2: 'Ingestionables FC',
-    date: '2024-10-10',
-    time: '20:00',
-  };
-
-  const sponsors = [
-    { id: 1, name: 'Sponsor 1', logo: '/path/to/sponsor1-logo.png' },
-    { id: 2, name: 'Sponsor 2', logo: '/path/to/sponsor2-logo.png' },
-    { id: 3, name: 'Sponsor 3', logo: '/path/to/sponsor3-logo.png' },
-  ];
 
   const nextMatchesDisplay = () => {
     if (nextMatchday?.phase === 'regular') {
@@ -226,17 +267,11 @@ const Home = () => {
 
   return (
     <div className="bg-body-secondary min-h-screen">
-      {/* 3/4 screen height photo background with bottom alignment */}
-      <div 
-        className="w-full h-[75vh] bg-cover bg-bottom flex items-center justify-center relative overflow-hidden"
-        style={{ backgroundImage: `url(${backgroundImage})` }}
-      >
-        <div className="absolute inset-0 bg-black bg-opacity-40"></div>
-        <div className="text-center text-white p-8 rounded relative z-10">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">Bienvenidos a la Liga Nico Sabag</h1>
-          <p className="text-lg md:text-xl lg:text-2xl">Donde la pasión por el fútbol se une con la competencia amistosa</p>
-        </div>
-      </div>
+      <BannerSlider 
+        banners={banners} 
+        currentBannerIndex={currentBannerIndex}
+        setCurrentBannerIndex={setCurrentBannerIndex}
+      />
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
@@ -325,16 +360,35 @@ const Home = () => {
           </div>
         </section>
 
-        {/* Sponsors Section */}
-        <section>
-          <h2 className="text-2xl font-semibold mb-4 text-text">Nuestros Patrocinadores</h2>
-          <div className="flex flex-wrap justify-center gap-8">
-            {sponsors.map((sponsor) => (
-              <div key={sponsor.id} className="text-center">
-                <img src={sponsor.logo} alt={sponsor.name} className="h-16 w-16 object-contain mx-auto" />
-                <p className="mt-2 text-text-dark">{sponsor.name}</p>
-              </div>
-            ))}
+        {/* Sponsors Section - at the bottom */}
+        <section className="mt-16 mb-8">
+          <h2 className="text-2xl font-semibold mb-6 text-center text-text">Nuestros Patrocinadores</h2>
+          <div className="flex flex-wrap justify-center gap-12">
+            {sponsors.map((sponsor) => {
+              console.log('Rendering sponsor:', sponsor);
+              return (
+                <div key={sponsor.id} className="text-center">
+                  <div className="w-32 h-32 mx-auto mb-3 bg-white rounded-lg shadow-md overflow-hidden">
+                    {sponsor.logo ? (
+                      <img
+                        src={pb.getFileUrl(sponsor, sponsor.logo)}
+                        alt={sponsor.name}
+                        className="w-full h-full object-contain p-2"
+                        onError={(e) => {
+                          console.error('Image load error:', e);
+                          e.target.src = '';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                        {sponsor.name.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-text-dark font-medium">{sponsor.name}</p>
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>

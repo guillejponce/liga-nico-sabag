@@ -253,7 +253,6 @@ const Schedule = () => {
   }
 
   const activeMatchdayData = matchdays.find((matchday) => matchday.id === activeMatchday);
-  const freeTeams = getFreeTeams(activeMatchdayData, teams);
   const hasPlayoffs = matchdays.some(m => 
     m.phase === 'gold_semi' || 
     m.phase === 'gold_final' || 

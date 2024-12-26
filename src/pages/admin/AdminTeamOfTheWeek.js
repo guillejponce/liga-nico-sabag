@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Plus, Edit, Trash2, Loader2, Save, Search } from 'lucide-react';
+import { Trophy, Edit, Trash2, Loader2, Save, Search } from 'lucide-react';
 import { 
   fetchTeamOfTheWeek, 
   createTeamOfTheWeek, 

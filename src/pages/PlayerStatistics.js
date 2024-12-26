@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Goal, AlertTriangle, Users } from 'lucide-react';
 import { pb } from '../config';
 import SoccerPitch from '../components/teams/SoccerPitch';
-import { FORMATIONS } from '../hooks/admin/teamOfTheWeekHandlers';
 
 const TABS = {
   GOALS: 'goals',

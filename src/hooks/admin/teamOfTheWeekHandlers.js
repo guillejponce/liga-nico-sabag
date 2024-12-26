@@ -1,14 +1,5 @@
 import { pb } from '../../config';
 
-// Helper function to get headers with bearer token
-const getHeaders = () => {
-  const token = localStorage.getItem('bearerToken');
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
-};
-
 export const FORMATIONS = [
   '2-3-1',
   '3-2-1',

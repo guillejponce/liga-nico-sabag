@@ -23,3 +23,4 @@ yarn-debug.log*
 yarn-error.log*
 
 .env
+pb_schema.json:Zone.Identifier

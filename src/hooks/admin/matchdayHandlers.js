@@ -1,9 +1,17 @@
 import { pb } from '../../config';
+import { fetchCurrentEdition } from './editionHandlers';
 
-export const fetchMatchdays = async () => {
+export const fetchMatchdays = async (signal) => {
   try {
+    const currentEdition = await fetchCurrentEdition();
+    if (!currentEdition) {
+      console.warn('No current edition found');
+      return [];
+    }
+
     const response = await pb.collection('matchdays').getList(1, 100, {
       sort: '-number',
+      filter: `season = "${currentEdition.id}"`,
     });
     console.log('Fetched matchdays:', response.items);
     return response.items;
@@ -21,6 +29,11 @@ export const createMatchday = async (matchdayData) => {
       throw new Error('Matchday date_time is required and cannot be empty');
     }
 
+    const currentEdition = await fetchCurrentEdition();
+    if (!currentEdition) {
+      throw new Error('No current edition found. Please set a current edition before creating matchdays.');
+    }
+
     // Fetch all existing matchdays to determine the next matchday number
     const existingMatchdays = await fetchAllMatchdays();
     // Find the highest number and add 1
@@ -32,6 +45,7 @@ export const createMatchday = async (matchdayData) => {
       number: nextNumber,
       matches: [], // Initialize with empty matches array
       phase: matchdayData.phase || 'regular', // Default to 'regular' if not provided
+      season: currentEdition.id, // Set the season to current edition
     };
 
     const createdMatchday = await pb.collection('matchdays').create(newMatchdayData);

@@ -6,6 +6,7 @@ import { fetchMatchesByMatchday } from '../hooks/admin/matchHandlers';
 import { useTeams } from '../hooks/teams/useTeams';
 import { getFreeTeams } from '../utils/matchUtils';
 import Bracket from '../components/results/bracket';
+import { fetchCurrentEdition } from '../hooks/admin/editionHandlers';
 
 const TeamDisplay = ({ team, isHome }) => {
   return (
@@ -175,14 +176,28 @@ const Schedule = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [currentEdition, setCurrentEdition] = useState(null);
   const { teams } = useTeams();
 
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
     
-    const loadMatchdays = async () => {
+    const loadData = async () => {
       try {
+        // First fetch current edition
+        const edition = await fetchCurrentEdition();
+        if (!mounted) return;
+        
+        if (!edition) {
+          setError('No hay temporada activa en este momento.');
+          setLoading(false);
+          return;
+        }
+        
+        setCurrentEdition(edition);
+
+        // Then fetch matchdays for current edition
         const fetchedMatchdays = await fetchMatchdays(controller.signal);
         
         if (!mounted) return;
@@ -219,16 +234,16 @@ const Schedule = () => {
         }
       } catch (err) {
         if (!err.message?.includes('autocancelled')) {
-          console.error('Error loading matchdays:', err);
+          console.error('Error loading schedule:', err);
           if (mounted) {
-            setError('Failed to load schedule. Please try again.');
+            setError('Error al cargar el calendario. Por favor, intente nuevamente.');
             setLoading(false);
           }
         }
       }
     };
 
-    loadMatchdays();
+    loadData();
 
     return () => {
       mounted = false;
@@ -246,8 +261,36 @@ const Schedule = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-body flex items-center justify-center text-red-500">
-        {error}
+      <div className="min-h-screen bg-body flex flex-col items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            {error === 'No hay temporada activa en este momento.' ? 'Sin Temporada Activa' : 'Error'}
+          </h2>
+          <p className="text-gray-600">
+            {error === 'No hay temporada activa en este momento.' 
+              ? 'No hay una temporada activa en este momento. Las fechas se mostrarán cuando se active una temporada.'
+              : error}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (matchdays.length === 0) {
+    return (
+      <div className="min-h-screen bg-body flex flex-col items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Sin Fechas Programadas
+          </h2>
+          <p className="text-gray-600">
+            {currentEdition 
+              ? `No hay fechas programadas para la temporada ${currentEdition.number} (${currentEdition.year} - ${currentEdition.semester === "1" ? "1er" : "2do"} Semestre).`
+              : 'No hay fechas programadas para la temporada actual.'}
+          </p>
+        </div>
       </div>
     );
   }

@@ -354,13 +354,15 @@ const AdminFixtures = () => {
             <select
               value={newMatchdayPhase}
               onChange={(e) => setNewMatchdayPhase(e.target.value)}
-              className="p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="p-3 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="regular">Regular</option>
-              <option value="gold_semi">Semifinal Oro</option>
-              <option value="gold_final">Final Oro</option>
-              <option value="silver_semi">Semifinal Plata</option>
-              <option value="silver_final">Final Plata</option>
+              <option value="group_a">Group A</option>
+              <option value="group_b">Group B</option>
+              <option value="gold_group">Gold Group</option>
+              <option value="silver_group">Silver Group</option>
+              <option value="bronze_group">Bronze Group</option>
+              <option value="semi_finals">Semi Finals</option>
+              <option value="finals">Finals</option>
             </select>
             <button 
               onClick={handleCreateMatchday}

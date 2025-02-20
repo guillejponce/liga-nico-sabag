@@ -106,26 +106,36 @@ export const calculateTeamStats = (team) => {
 };
 
 export const getTeamsByPhase = async (phase) => {
-  const matches = await pb.collection('matches').getList(1, 500, {
-    filter: `matchday.phase="${phase}"`,
-    expand: 'home_team,away_team'
-  });
+  try {
+    const matches = await pb.collection('matches').getList(1, 500, {
+      filter: `matchday.phase="${phase}"`,
+      expand: 'home_team,away_team'
+    });
 
-  const teamIds = new Set();
-  matches.items.forEach(match => {
-    if (match.home_team) teamIds.add(match.home_team);
-    if (match.away_team) teamIds.add(match.away_team);
-  });
+    const teamIds = new Set();
+    matches.items.forEach(match => {
+      if (match.home_team) teamIds.add(match.home_team);
+      if (match.away_team) teamIds.add(match.away_team);
+    });
 
-  return Array.from(teamIds);
+    return Array.from(teamIds);
+  } catch (error) {
+    console.log(`No matches found for phase: ${phase}`);
+    return []; // Return empty array instead of throwing error
+  }
 };
 
 export const getParticipatingTeams = async (stage) => {
-  const phases = getPhasesByStage(stage);
-  const teamsPromises = phases.map(phase => getTeamsByPhase(phase));
-  const teamsArrays = await Promise.all(teamsPromises);
-  
-  // Combine all team IDs from all phases
-  const teamIds = new Set(teamsArrays.flat());
-  return Array.from(teamIds);
+  try {
+    const phases = getPhasesByStage(stage);
+    const teamsPromises = phases.map(phase => getTeamsByPhase(phase));
+    const teamsArrays = await Promise.all(teamsPromises);
+    
+    // Combine all team IDs from all phases
+    const teamIds = new Set(teamsArrays.flat());
+    return Array.from(teamIds);
+  } catch (error) {
+    console.log(`No teams found for stage: ${stage}`);
+    return [];
+  }
 };

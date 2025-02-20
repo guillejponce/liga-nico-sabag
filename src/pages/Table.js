@@ -115,12 +115,17 @@ const TableView = () => {
   const [teamsByPhase, setTeamsByPhase] = React.useState({});
 
   const loadTeamsForPhases = async (phases) => {
-    const teamsMap = {};
-    for (const phase of phases) {
-      const teamIds = await getTeamsByPhase(phase);
-      teamsMap[phase] = teamIds;
+    try {
+      const teamsMap = {};
+      for (const phase of phases) {
+        const teamIds = await getTeamsByPhase(phase);
+        teamsMap[phase] = teamIds;
+      }
+      setTeamsByPhase(teamsMap);
+    } catch (error) {
+      console.log('Error loading teams for phases:', error);
+      setTeamsByPhase({}); // Set empty object on error
     }
-    setTeamsByPhase(teamsMap);
   };
 
   const handleRowClick = (teamId) => {
@@ -242,46 +247,99 @@ const TableView = () => {
     const phases = getPhasesByStage(selectedStage);
     
     if (selectedStage === 'group_phase') {
+      const groupATeams = getTeamsForPhase(teams, teamsByPhase['group_a'] || []);
+      const groupBTeams = getTeamsForPhase(teams, teamsByPhase['group_b'] || []);
+
       return (
         <>
-          <TableComponent 
-            data={getTeamsForPhase(teams, teamsByPhase['group_a'])} 
-            title="Group A"
-          />
-          <TableComponent 
-            data={getTeamsForPhase(teams, teamsByPhase['group_b'])} 
-            title="Group B"
-          />
+          {groupATeams.length > 0 ? (
+            <TableComponent 
+              data={groupATeams} 
+              title="Group A"
+            />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+              <h2 className="text-2xl font-bold text-gray-800">Group A</h2>
+              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+            </div>
+          )}
+          
+          {groupBTeams.length > 0 ? (
+            <TableComponent 
+              data={groupBTeams} 
+              title="Group B"
+            />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+              <h2 className="text-2xl font-bold text-gray-800">Group B</h2>
+              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+            </div>
+          )}
         </>
       );
     }
 
     if (selectedStage === 'playoffs') {
+      const goldTeams = getTeamsForPhase(teams, teamsByPhase['gold_group'] || []);
+      const silverTeams = getTeamsForPhase(teams, teamsByPhase['silver_group'] || []);
+      const bronzeTeams = getTeamsForPhase(teams, teamsByPhase['bronze_group'] || []);
+
       return (
         <>
-          <TableComponent 
-            data={getTeamsForPhase(teams, teamsByPhase['gold_group'])} 
-            title="Gold Group"
-          />
-          <TableComponent 
-            data={getTeamsForPhase(teams, teamsByPhase['silver_group'])} 
-            title="Silver Group"
-          />
-          <TableComponent 
-            data={getTeamsForPhase(teams, teamsByPhase['bronze_group'])} 
-            title="Bronze Group"
-          />
+          {goldTeams.length > 0 ? (
+            <TableComponent 
+              data={goldTeams} 
+              title="Gold Group"
+            />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+              <h2 className="text-2xl font-bold text-gray-800">Gold Group</h2>
+              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+            </div>
+          )}
+          
+          {silverTeams.length > 0 ? (
+            <TableComponent 
+              data={silverTeams} 
+              title="Silver Group"
+            />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+              <h2 className="text-2xl font-bold text-gray-800">Silver Group</h2>
+              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+            </div>
+          )}
+          
+          {bronzeTeams.length > 0 ? (
+            <TableComponent 
+              data={bronzeTeams} 
+              title="Bronze Group"
+            />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+              <h2 className="text-2xl font-bold text-gray-800">Bronze Group</h2>
+              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+            </div>
+          )}
         </>
       );
     }
 
-    // For finals stages, show single table with participating teams
+    // For finals stages
     if (selectedStage.includes('finals')) {
-      return (
+      const finalsTeams = getTeamsForPhase(teams, participatingTeams || []);
+      const title = stages.find(s => s.value === selectedStage)?.label;
+
+      return finalsTeams.length > 0 ? (
         <TableComponent 
-          data={getTeamsForPhase(teams, participatingTeams)} 
-          title={stages.find(s => s.value === selectedStage)?.label}
+          data={finalsTeams} 
+          title={title}
         />
+      ) : (
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+          <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+          <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+        </div>
       );
     }
   };

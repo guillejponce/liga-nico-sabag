@@ -3,15 +3,22 @@ import { useTable, useSortBy } from 'react-table';
 import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useTeams } from '../hooks/teams/useTeams';
-import { calculateTeamStats, updateTeamStatistics, getParticipatingTeams, getTeamsByPhase, getPhasesByStage } from '../utils/teamsUtils';
+import {
+  calculateTeamStats,
+  updateTeamStatistics,
+  getParticipatingTeams,
+  getTeamsByPhase,
+  getPhasesByStage
+} from '../utils/teamsUtils';
 import { pb } from '../config';
 
+// Stage options now in Spanish
 const stages = [
-  { value: 'group_phase', label: 'Group Phase' },
-  { value: 'playoffs', label: 'Playoffs' },
-  { value: 'gold_finals', label: 'Gold Finals' },
-  { value: 'silver_finals', label: 'Silver Finals' },
-  { value: 'bronze_finals', label: 'Bronze Finals' }
+  { value: 'group_phase', label: 'Fase de Grupos' },
+  { value: 'playoffs', label: 'Eliminatorias' },
+  { value: 'gold_finals', label: 'Finales de Oro' },
+  { value: 'silver_finals', label: 'Finales de Plata' },
+  { value: 'bronze_finals', label: 'Finales de Bronce' }
 ];
 
 const columns = [
@@ -31,7 +38,7 @@ const columns = [
       <div className="w-12 h-12 p-1 bg-white rounded-full shadow-sm">
         <img 
           src={value} 
-          alt="Team logo" 
+          alt="Logo del equipo" 
           className="w-full h-full object-contain rounded-full"
         />
       </div>
@@ -108,12 +115,14 @@ const columns = [
 
 const TableView = () => {
   const navigate = useNavigate();
-  const { teams, loading, error, refreshTeams } = useTeams();
+  // Ensure teams is at least an empty array to avoid errors on first render
+  const { teams = [], loading, error, refreshTeams } = useTeams();
   const [selectedStage, setSelectedStage] = React.useState('group_phase');
   const [updating, setUpdating] = React.useState(false);
-  const [participatingTeams, setParticipatingTeams] = React.useState(null);
+  const [participatingTeams, setParticipatingTeams] = React.useState([]);
   const [teamsByPhase, setTeamsByPhase] = React.useState({});
 
+  // Load teams by phase for the current stage
   const loadTeamsForPhases = async (phases) => {
     try {
       const teamsMap = {};
@@ -123,8 +132,8 @@ const TableView = () => {
       }
       setTeamsByPhase(teamsMap);
     } catch (error) {
-      console.log('Error loading teams for phases:', error);
-      setTeamsByPhase({}); // Set empty object on error
+      console.log('Error al cargar equipos por fase:', error);
+      setTeamsByPhase({});
     }
   };
 
@@ -132,6 +141,7 @@ const TableView = () => {
     navigate(`/teams/${teamId}`);
   };
 
+  // Called when the user selects a new stage from the dropdown
   const handleStageChange = async (e) => {
     const stage = e.target.value;
     setSelectedStage(stage);
@@ -145,44 +155,52 @@ const TableView = () => {
         const teamIds = await getParticipatingTeams(stage);
         setParticipatingTeams(teamIds);
       } else {
-        setParticipatingTeams(null);
+        setParticipatingTeams([]);
       }
       
-      if (refreshTeams) {
+      if (typeof refreshTeams === 'function') {
         await refreshTeams();
       }
     } catch (err) {
-      console.error('Error updating team stats:', err);
+      console.error('Error actualizando estadísticas del equipo:', err);
     } finally {
       setUpdating(false);
     }
   };
 
   React.useEffect(() => {
-    if (selectedStage) {
+    if (teams.length > 0) {
       const phases = getPhasesByStage(selectedStage);
       loadTeamsForPhases(phases);
     }
-  }, [selectedStage]);
+  }, [selectedStage, teams]);
 
-  const getTeamsForPhase = (teams, phaseTeamIds) => {
-    if (!teams || !phaseTeamIds) return [];
-    
-    const filteredTeams = teams.filter(team => phaseTeamIds.includes(team.id));
-    return filteredTeams.map(team => ({
-      id: team.id,
-      logo: team.logo ? pb.getFileUrl(team, team.logo) : '',
-      name: team.name,
-      ...calculateTeamStats(team)
-    })).sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-      const aGoals = parseInt(a.goalsForAgainst.split(':')[0]);
-      const bGoals = parseInt(b.goalsForAgainst.split(':')[0]);
-      return bGoals - aGoals;
-    });
+  // Helper function to safely extract goals from the "GF:GC" string
+  const getGoals = (team) => {
+    if (!team.goalsForAgainst) return 0;
+    const parts = team.goalsForAgainst.split(':');
+    return parseInt(parts[0]) || 0;
   };
 
+  // Filters teams based on provided team IDs from a phase
+  const getTeamsForPhase = (teams, phaseTeamIds) => {
+    if (!teams || !phaseTeamIds) return [];
+    const filteredTeams = teams.filter(team => phaseTeamIds.includes(team.id));
+    return filteredTeams
+      .map(team => ({
+        id: team.id,
+        logo: team.logo ? pb.getFileUrl(team, team.logo) : '',
+        name: team.name,
+        ...calculateTeamStats(team)
+      }))
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+        return getGoals(b) - getGoals(a);
+      });
+  };
+
+  // A reusable table component for displaying standings
   const TableComponent = ({ data, title }) => {
     const tableInstance = useTable({ columns, data }, useSortBy);
     const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = tableInstance;
@@ -196,7 +214,7 @@ const TableView = () => {
               {headerGroups.map(headerGroup => (
                 <tr {...headerGroup.getHeaderGroupProps()} className="bg-gradient-to-r from-gray-50 to-gray-100">
                   {headerGroup.headers.map(column => (
-                    <th {...column.getHeaderProps()} className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                    <th {...column.getHeaderProps()} className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">
                       {column.render('Header')}
                     </th>
                   ))}
@@ -213,7 +231,7 @@ const TableView = () => {
                     onClick={() => handleRowClick(row.original.id)}
                   >
                     {row.cells.map(cell => (
-                      <td {...cell.getCellProps()} className="px-6 py-4 whitespace-nowrap">
+                      <td {...cell.getCellProps()} className="px-4 py-2 whitespace-nowrap">
                         {cell.render('Cell')}
                       </td>
                     ))}
@@ -238,41 +256,34 @@ const TableView = () => {
   if (error) {
     return (
       <div className="text-center text-red-600 p-4">
-        Error loading table data: {error}
+        Error al cargar los datos de la tabla: {error}
       </div>
     );
   }
 
+  // Renders the appropriate tables for the current stage
   const renderTables = () => {
     const phases = getPhasesByStage(selectedStage);
     
     if (selectedStage === 'group_phase') {
       const groupATeams = getTeamsForPhase(teams, teamsByPhase['group_a'] || []);
       const groupBTeams = getTeamsForPhase(teams, teamsByPhase['group_b'] || []);
-
       return (
         <>
           {groupATeams.length > 0 ? (
-            <TableComponent 
-              data={groupATeams} 
-              title="Group A"
-            />
+            <TableComponent data={groupATeams} title="Grupo A" />
           ) : (
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Group A</h2>
-              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+              <h2 className="text-2xl font-bold text-gray-800">Grupo A</h2>
+              <p className="text-gray-600 mt-2">No hay partidos programados</p>
             </div>
           )}
-          
           {groupBTeams.length > 0 ? (
-            <TableComponent 
-              data={groupBTeams} 
-              title="Group B"
-            />
+            <TableComponent data={groupBTeams} title="Grupo B" />
           ) : (
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Group B</h2>
-              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+              <h2 className="text-2xl font-bold text-gray-800">Grupo B</h2>
+              <p className="text-gray-600 mt-2">No hay partidos programados</p>
             </div>
           )}
         </>
@@ -283,42 +294,30 @@ const TableView = () => {
       const goldTeams = getTeamsForPhase(teams, teamsByPhase['gold_group'] || []);
       const silverTeams = getTeamsForPhase(teams, teamsByPhase['silver_group'] || []);
       const bronzeTeams = getTeamsForPhase(teams, teamsByPhase['bronze_group'] || []);
-
       return (
         <>
           {goldTeams.length > 0 ? (
-            <TableComponent 
-              data={goldTeams} 
-              title="Gold Group"
-            />
+            <TableComponent data={goldTeams} title="Grupo Oro" />
           ) : (
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Gold Group</h2>
-              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+              <h2 className="text-2xl font-bold text-gray-800">Grupo Oro</h2>
+              <p className="text-gray-600 mt-2">No hay partidos programados</p>
             </div>
           )}
-          
           {silverTeams.length > 0 ? (
-            <TableComponent 
-              data={silverTeams} 
-              title="Silver Group"
-            />
+            <TableComponent data={silverTeams} title="Grupo Plata" />
           ) : (
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Silver Group</h2>
-              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+              <h2 className="text-2xl font-bold text-gray-800">Grupo Plata</h2>
+              <p className="text-gray-600 mt-2">No hay partidos programados</p>
             </div>
           )}
-          
           {bronzeTeams.length > 0 ? (
-            <TableComponent 
-              data={bronzeTeams} 
-              title="Bronze Group"
-            />
+            <TableComponent data={bronzeTeams} title="Grupo Bronce" />
           ) : (
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Bronze Group</h2>
-              <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+              <h2 className="text-2xl font-bold text-gray-800">Grupo Bronce</h2>
+              <p className="text-gray-600 mt-2">No hay partidos programados</p>
             </div>
           )}
         </>
@@ -329,16 +328,12 @@ const TableView = () => {
     if (selectedStage.includes('finals')) {
       const finalsTeams = getTeamsForPhase(teams, participatingTeams || []);
       const title = stages.find(s => s.value === selectedStage)?.label;
-
       return finalsTeams.length > 0 ? (
-        <TableComponent 
-          data={finalsTeams} 
-          title={title}
-        />
+        <TableComponent data={finalsTeams} title={title} />
       ) : (
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
           <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-          <p className="text-gray-600 mt-2">No matches scheduled yet</p>
+          <p className="text-gray-600 mt-2">No hay partidos programados</p>
         </div>
       );
     }
@@ -346,24 +341,32 @@ const TableView = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
-      <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">
-        League Table
-      </h1>
-      <div className="flex justify-center mb-8">
-        <select 
-          value={selectedStage} 
-          onChange={handleStageChange} 
-          className="p-2 border rounded"
-        >
-          {stages.map(stage => (
-            <option key={stage.value} value={stage.value}>
-              {stage.label}
-            </option>
-          ))}
-        </select>
-        {updating && <span className="ml-2 text-blue-500">Updating statistics...</span>}
+      {/* Overlay spinner */}
+      {updating && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+        </div>
+      )}
+      
+      <div className="max-w-screen-md mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800">Tabla de Posiciones</h1>
+          <div className="flex items-center mt-4 md:mt-0">
+            <select value={selectedStage} onChange={handleStageChange} className="p-2 border rounded">
+              {stages.map(stage => (
+                <option key={stage.value} value={stage.value}>
+                  {stage.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
-      {renderTables()}
+      
+      {/* Main content container has been narrowed */}
+      <div className="max-w-screen-md mx-auto">
+        {renderTables()}
+      </div>
     </div>
   );
 };

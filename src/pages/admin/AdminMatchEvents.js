@@ -5,10 +5,13 @@ import {
   AlertTriangle, 
   UserMinus, 
   Trophy,
-  Loader2 
+  Loader2,
+  Plus,
+  X
 } from 'lucide-react';
 import { createEvent, deleteEvent, fetchEvents } from '../../hooks/admin/matchEventHandlers';
 import { updatePlayerStatistics } from '../../utils/playersUtils';
+import { toast } from 'react-toastify';
 
 const EVENT_TYPES = {
   GOAL: 'goal',
@@ -49,233 +52,194 @@ const getEventLabel = (type) => {
   return labels[type.toLowerCase()] || type;
 };
 
-const EditMatchEventsModal = ({ match, matchdayIndex, matchIndex, onClose, updateMatchEvents }) => {
+const eventTypes = [
+  { value: 'goal', label: 'Goal' },
+  { value: 'yellow_card', label: 'Yellow Card' },
+  { value: 'red_card', label: 'Red Card' },
+];
+
+const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
+  console.log('Match data:', match);
+  
   const { players: homePlayers, loading: homeLoading } = useTeamPlayers(match.home_team_id);
   const { players: awayPlayers, loading: awayLoading } = useTeamPlayers(match.away_team_id);
-  const [selectedTeam, setSelectedTeam] = useState('');
-  const [eventType, setEventType] = useState('');
-  const [selectedPlayer, setSelectedPlayer] = useState('');
+  
+  console.log('Home players:', homePlayers);
+  console.log('Away players:', awayPlayers);
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTeam, setSelectedTeam] = useState('home');
+  const [eventType, setEventType] = useState(eventTypes[0].value);
+  const [selectedPlayer, setSelectedPlayer] = useState('');
 
   useEffect(() => {
-    const loadEvents = async () => {
-      try {
-        const fetchedEvents = await fetchEvents(match.id);
-        setEvents(fetchedEvents);
-      } catch (error) {
-        console.error('Error loading events:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadEvents();
   }, [match.id]);
 
-  const addEvent = async () => {
-    if (!eventType || !selectedPlayer) return;
-    
+  const loadEvents = async () => {
+    try {
+      const fetchedEvents = await fetchEvents(match.id);
+      setEvents(fetchedEvents);
+      return fetchedEvents;
+    } catch (error) {
+      console.error('Error loading events:', error);
+      toast.error('Failed to load match events');
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddEvent = async () => {
+    if (!eventType || !selectedPlayer) {
+      toast.error('Please select both player and event type');
+      return;
+    }
+
     try {
       const eventData = {
         type: eventType,
         player: selectedPlayer,
-        match: match.id
+        match: match.id,
+        team: selectedTeam === 'home' ? match.home_team_id : match.away_team_id
       };
       
-      await createEvent(eventData);
-      // Fetch updated events list immediately after creation
-      const updatedEvents = await fetchEvents(match.id);
-      setEvents(updatedEvents);
+      console.log('Saving event data:', eventData);
       
-      // Reset form
-      setEventType('');
+      await createEvent(eventData);
+      const updatedEvents = await loadEvents();
+      updateMatchEvents(updatedEvents);
+      setEventType(eventTypes[0].value);
       setSelectedPlayer('');
-      setSelectedTeam('');
-
-      // Update player statistics
-      await updatePlayerStatistics();
+      toast.success('Event added successfully');
     } catch (error) {
       console.error('Error adding event:', error);
+      toast.error('Failed to add event');
     }
   };
 
-  const removeEvent = async (eventId) => {
+  const handleRemoveEvent = async (eventId) => {
     try {
       await deleteEvent(eventId);
-      // Refresh the events list after deletion
-      const updatedEvents = await fetchEvents(match.id);
-      setEvents(updatedEvents);
+      await loadEvents();
+      toast.success('Event removed successfully');
     } catch (error) {
       console.error('Error removing event:', error);
+      toast.error('Failed to remove event');
     }
   };
 
-  const currentPlayers = selectedTeam === match.home_team_id ? homePlayers : 
-                        selectedTeam === match.away_team_id ? awayPlayers : [];
-  const isLoading = selectedTeam === match.home_team_id ? homeLoading : 
-                    selectedTeam === match.away_team_id ? awayLoading : false;
+  const currentPlayers = selectedTeam === 'home' ? homePlayers : awayPlayers;
+  const isLoading = homeLoading || awayLoading || loading;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">
-              Match Events: {match.home_team} vs {match.away_team}
-            </h2>
-            <button 
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
-            >
-              ×
-            </button>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Match Events</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
 
-          {/* Events Timeline */}
-          <div className="mb-6">
-            <h3 className="font-semibold mb-4 text-lg">Match Timeline</h3>
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-              </div>
-            ) : events.length > 0 ? (
-              <div className="space-y-4">
-                {events.map((event, index) => (
-                  <div 
-                    key={event.id}
-                    className={`relative flex items-center ${
-                      index !== events.length - 1 ? 'pb-4' : ''
-                    }`}
+        {isLoading ? (
+          <div className="text-center py-4">Loading...</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <h3 className="font-semibold mb-2">Add New Event</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Team</label>
+                    <select
+                      value={selectedTeam}
+                      onChange={(e) => setSelectedTeam(e.target.value)}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="home">{match.home_team?.name || match.home_team_id}</option>
+                      <option value="away">{match.away_team?.name || match.away_team_id}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Player</label>
+                    <select
+                      value={selectedPlayer}
+                      onChange={(e) => setSelectedPlayer(e.target.value)}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Select Player</option>
+                      {currentPlayers.map(player => (
+                        <option key={player.id} value={player.id}>
+                          {player.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Event Type</label>
+                    <select
+                      value={eventType}
+                      onChange={(e) => setEventType(e.target.value)}
+                      className="w-full p-2 border rounded"
+                    >
+                      {eventTypes.map(type => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={handleAddEvent}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded flex items-center justify-center"
                   >
-                    {/* Timeline line */}
-                    {index !== events.length - 1 && (
-                      <div className="absolute left-6 top-8 bottom-0 w-0.5 bg-gray-200" />
-                    )}
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Event
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">Current Events</h3>
+                <div className="space-y-2">
+                  {events.map(event => {
+                    console.log('Event data:', event);
                     
-                    {/* Event card */}
-                    <div className="relative flex items-center w-full bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-center space-x-4 w-full">
-                        {/* Icon */}
-                        <div className="p-2 bg-gray-50 rounded-full">
-                          {getEventIcon(event.type)}
-                        </div>
-                        
-                        {/* Event details */}
-                        <div className="flex-grow">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-gray-900">
-                              {event.expand?.player ? 
-                                `${event.expand.player.first_name} ${event.expand.player.last_name}` : 
-                                'Unknown Player'}
-                            </span>
-                            <span className="text-sm text-gray-500">•</span>
-                            <span className="text-sm text-gray-600">
-                              {getEventLabel(event.type)}
-                            </span>
-                          </div>
+                    const EventIcon = getEventIcon(event.type);
+                    const player = event.team === match.home_team_id
+                      ? homePlayers.find(p => p.id === event.player)
+                      : awayPlayers.find(p => p.id === event.player);
+                    
+                    console.log('Found player:', player);
+
+                    return (
+                      <div key={event.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div className="flex items-center space-x-2">
+                          {EventIcon}
+                          <span>{player?.name || 'Unknown Player'}</span>
                           <span className="text-sm text-gray-500">
-                            {event.expand?.player?.team === match.home_team_id ? match.home_team : match.away_team}
+                            ({event.team === match.home_team_id ? 'Home' : 'Away'})
                           </span>
                         </div>
-                        
-                        {/* Delete button */}
                         <button
-                          onClick={() => removeEvent(event.id)}
-                          className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                          onClick={() => handleRemoveEvent(event.id)}
+                          className="text-red-500 hover:text-red-700"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No events recorded yet</p>
-              </div>
-            )}
-          </div>
-
-          {/* Add New Event Form */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-4">Add New Event</h3>
-            
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              {/* Team Selection */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Team</label>
-                <select
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={selectedTeam}
-                  onChange={(e) => {
-                    setSelectedTeam(e.target.value);
-                    setSelectedPlayer('');
-                  }}
-                >
-                  <option value="">Select Team</option>
-                  <option value={match.home_team_id}>{match.home_team}</option>
-                  <option value={match.away_team_id}>{match.away_team}</option>
-                </select>
-              </div>
-
-              {/* Event Type Selection */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Event Type</label>
-                <select
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={eventType}
-                  onChange={(e) => setEventType(e.target.value)}
-                >
-                  <option value="">Select Type</option>
-                  {Object.values(EVENT_TYPES).map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Player Selection */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Player</label>
-                {isLoading ? (
-                  <div className="flex items-center space-x-2 h-10">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm text-gray-500">Loading players...</span>
-                  </div>
-                ) : (
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={selectedPlayer}
-                    onChange={(e) => setSelectedPlayer(e.target.value)}
-                    disabled={!selectedTeam}
-                  >
-                    <option value="">Select Player</option>
-                    {currentPlayers?.map(player => (
-                      <option key={player.id} value={player.id}>
-                        {player.first_name} {player.last_name}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                    );
+                  })}
+                </div>
               </div>
             </div>
-
-            {/* Add Event Button */}
-            <button
-              onClick={addEvent}
-              disabled={!eventType || !selectedPlayer || isLoading}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              Add Event
-            </button>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
 };
 
-export default EditMatchEventsModal;
+export default AdminMatchEvents;

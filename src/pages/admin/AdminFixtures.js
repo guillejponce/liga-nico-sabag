@@ -1,21 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { useTeams } from '../../hooks/teams/useTeams';
-import { Calendar, Trophy, Loader2, Plus, Save, Clock } from 'lucide-react';
+import { Calendar, Trophy, Loader2, Plus, Save } from 'lucide-react';
 import AdminMatchEvents from './AdminMatchEvents';
+import AdminMatchResultModal from './AdminMatchResultModal';
 import { fetchMatchdays, createMatchday, deleteMatchday } from '../../hooks/admin/matchdayHandlers';
 import { fetchMatchesByMatchday, createMatch, updateMatch as updateMatchAPI } from '../../hooks/admin/matchHandlers';
 import { pb } from '../../config';
 import { updateTeamStatistics } from '../../utils/teamsUtils';
 import { toast } from 'react-toastify';
+import { useTeams } from '../../hooks/teams/useTeams';
+
+const phaseOptions = [
+  { label: "Group A", value: "group_a" },
+  { label: "Group B", value: "group_b" },
+  { label: "Gold Group", value: "gold_group" },
+  { label: "Silver Group", value: "silver_group" },
+  { label: "Bronze Group", value: "bronze_group" },
+  { label: "Semifinal Gold", value: "gold_semi" },
+  { label: "Semifinal Silver", value: "silver_semi" },
+  { label: "Semifinal Bronze", value: "bronze_semi" },
+  { label: "Final Gold", value: "gold_final" },
+  { label: "Final Silver", value: "silver_final" },
+  { label: "Final Bronze", value: "bronze_final" },
+];
+
+// Helper to convert a matchday phase to a stage (for team stats update)
+const getStageFromPhase = (phase) => {
+  if (phase === 'group_a' || phase === 'group_b') return 'group_phase';
+  if (phase === 'gold_group' || phase === 'silver_group' || phase === 'bronze_group') return 'playoffs';
+  if (phase === 'gold_semi' || phase === 'silver_semi' || phase === 'bronze_semi') return 'semifinals';
+  if (phase === 'gold_final' || phase === 'silver_final' || phase === 'bronze_final') return 'finals';
+  return '';
+};
 
 const AdminFixtures = () => {
   const [matchdays, setMatchdays] = useState([]);
-  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [selectedResultMatch, setSelectedResultMatch] = useState(null); // { matchdayIndex, matchIndex }
   const [selectedMatchday, setSelectedMatchday] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false); // (for events modal, if still used)
+  const [error, setError] = useState(null);
   const { teams, loading, error: teamsError } = useTeams();
-  const [newMatchdayPhase, setNewMatchdayPhase] = useState('regular');
+
+  // Use a single phase dropdown for filtering and creation.
+  const [selectedAdminPhase, setSelectedAdminPhase] = useState(phaseOptions[0].value);
+
+  // Add this state at the top with other states
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -24,18 +53,14 @@ const AdminFixtures = () => {
     const loadMatchdays = async () => {
       try {
         const fetchedMatchdays = await fetchMatchdays();
-        
         if (!mounted) return;
-
         const sortedMatchdays = fetchedMatchdays.sort((a, b) => b.number - a.number);
-        console.log('Sorted matchdays:', sortedMatchdays);
-
+        // Load matches for each matchday
         const matchdaysWithMatches = await Promise.all(
           sortedMatchdays.map(async (matchday) => {
             try {
               const matches = await fetchMatchesByMatchday(matchday.id, controller.signal);
               if (!mounted) return { ...matchday, matches: [] };
-              
               return {
                 ...matchday,
                 matches: matches || [],
@@ -49,7 +74,6 @@ const AdminFixtures = () => {
             }
           })
         );
-        
         if (mounted) {
           setMatchdays(matchdaysWithMatches.filter(Boolean));
         }
@@ -67,16 +91,18 @@ const AdminFixtures = () => {
       mounted = false;
       controller.abort();
     };
-  }, [setError]);
+  }, []);
+
+  // Filter matchdays by the currently selected phase
+  const filteredMatchdays = matchdays.filter(matchday => matchday.phase === selectedAdminPhase);
 
   const handleCreateMatchday = async () => {
     try {
       const { createdMatchday, updatedMatchdays } = await createMatchday({
         date_time: new Date().toISOString(),
-        phase: newMatchdayPhase,
+        phase: selectedAdminPhase,
       });
-
-      // Transform the matchdays with their matches
+      // Load matches for the updated matchdays
       const matchdaysWithMatches = await Promise.all(
         updatedMatchdays.map(async (matchday) => {
           const matches = await fetchMatchesByMatchday(matchday.id);
@@ -86,7 +112,6 @@ const AdminFixtures = () => {
           };
         })
       );
-
       setMatchdays(matchdaysWithMatches);
       setSelectedMatchday(createdMatchday.id);
       toast.success('New matchday created successfully');
@@ -97,116 +122,96 @@ const AdminFixtures = () => {
     }
   };
 
-  const handleMatchUpdate = async (matchdayIndex, matchIndex, field, value) => {
+  const handleAddMatch = async (matchdayId) => {
+    try {
+      const createdMatch = await createMatch(matchdayId);
+      
+      // Update the local state to include the new match
+      const updatedMatchdays = matchdays.map(matchday => {
+        if (matchday.id === matchdayId) {
+          return {
+            ...matchday,
+            matches: [...matchday.matches, {
+              ...createdMatch,
+              home_team: '', // will be enriched later
+              away_team: '',
+              home_team_id: '', // empty until updated
+              away_team_id: '',
+              home_team_logo: '',
+              away_team_logo: ''
+            }]
+          };
+        }
+        return matchday;
+      });
+      
+      setMatchdays(updatedMatchdays);
+      toast.success('New match added successfully');
+    } catch (error) {
+      console.error('Error adding match:', error);
+      toast.error('Failed to add match');
+    }
+  };
+
+  const handleResultSave = async (matchdayIndex, matchIndex, updatedData) => {
     try {
       const match = matchdays[matchdayIndex].matches[matchIndex];
-      
-      let updateData;
-      
-      if (field === 'is_finished') {
-        updateData = {
-          matchday: match.matchday,
-          date_time: match.date_time || new Date().toISOString(),
-          home_team: match.home_team_id || '',
-          away_team: match.away_team_id || '',
-          home_team_score: match.home_team_score || 0,
-          away_team_score: match.away_team_score || 0,
-          is_finished: value,
-          events: match.events?.map(event => event.id) || []
-        };
-      } else if (field === 'home_team' || field === 'away_team') {
-        updateData = {
-          matchday: match.matchday,
-          date_time: match.date_time || new Date().toISOString(),
-          home_team: field === 'home_team' ? value : match.home_team_id || '',
-          away_team: field === 'away_team' ? value : match.away_team_id || '',
-          home_team_score: match.home_team_score || 0,
-          away_team_score: match.away_team_score || 0,
-          is_finished: match.is_finished || false,
-          events: match.events?.map(event => event.id) || []
-        };
-      } else {
-        updateData = {
-          matchday: match.matchday,
-          date_time: match.date_time || new Date().toISOString(),
-          home_team: match.home_team_id || '',
-          away_team: match.away_team_id || '',
-          [field]: value,
-          is_finished: match.is_finished || false,
-          events: match.events?.map(event => event.id) || []
-        };
+      if (!match || !match.id) {
+        throw new Error('Invalid match selected');
       }
-  
+
+      // Build update data combining the modal's data with the existing match info
+      const updateData = {
+        matchday: match.matchday,
+        date_time: updatedData.date_time || match.date_time || new Date().toISOString(),
+        home_team: updatedData.home_team || match.home_team_id || '',
+        away_team: updatedData.away_team || match.away_team_id || '',
+        home_team_score: (updatedData.home_team_score !== undefined) 
+          ? Number(updatedData.home_team_score) 
+          : (match.home_team_score || 0),
+        away_team_score: (updatedData.away_team_score !== undefined)
+          ? Number(updatedData.away_team_score)
+          : (match.away_team_score || 0),
+        is_finished: updatedData.is_finished ?? match.is_finished ?? false,
+        events: match.events?.map(event => event.id) || []
+      };
+
+      if (updatedData.home_penalties !== undefined) {
+        updateData.home_penalties = Number(updatedData.home_penalties);
+      }
+      if (updatedData.away_penalties !== undefined) {
+        updateData.away_penalties = Number(updatedData.away_penalties);
+      }
+
       const updatedMatch = await updateMatchAPI(match.id, updateData);
-  
-      const updatedMatchdays = matchdays.map((matchday, mdIndex) => 
-        mdIndex === matchdayIndex
-          ? {
-              ...matchday,
-              matches: matchday.matches.map((m, mIndex) => {
-                if (mIndex === matchIndex) {
-                  const homeTeam = teams.find(t => t.id === updatedMatch.home_team);
-                  const awayTeam = teams.find(t => t.id === updatedMatch.away_team);
-                  
-                  return {
-                    ...updatedMatch,
-                    home_team: homeTeam?.name || '',
-                    away_team: awayTeam?.name || '',
-                    home_team_id: updatedMatch.home_team,
-                    away_team_id: updatedMatch.away_team,
-                    home_team_logo: homeTeam?.logo || '',
-                    away_team_logo: awayTeam?.logo || ''
-                  };
-                }
-                return m;
-              })
-            }
-          : matchday
-      );
+
+      // Update local state using match ID instead of indices
+      const updatedMatchdays = matchdays.map(matchday => ({
+        ...matchday,
+        matches: matchday.matches.map(m => {
+          if (m.id === match.id) {
+            const homeTeam = teams.find(t => t.id === updatedMatch.home_team);
+            const awayTeam = teams.find(t => t.id === updatedMatch.away_team);
+            return {
+              ...updatedMatch,
+              home_team: homeTeam?.name || '',
+              away_team: awayTeam?.name || '',
+              home_team_id: updatedMatch.home_team,
+              away_team_id: updatedMatch.away_team,
+              home_team_logo: homeTeam?.logo || '',
+              away_team_logo: awayTeam?.logo || ''
+            };
+          }
+          return m;
+        })
+      }));
+
       setMatchdays(updatedMatchdays);
+      toast.success('Match updated successfully');
     } catch (err) {
       console.error('Error updating match:', err);
-      setError('Failed to update match. Please try again.');
+      toast.error('Failed to update match: ' + err.message);
     }
-  };
-
-  const updateMatchEvents = (matchdayIndex, matchIndex, events) => {
-    const updatedMatchdays = matchdays.map((matchday, mdIndex) => 
-      mdIndex === matchdayIndex
-        ? {
-            ...matchday,
-            matches: matchday.matches.map((match, mIndex) => 
-              mIndex === matchIndex ? { ...match, events } : match
-            )
-          }
-        : matchday
-    );
-    setMatchdays(updatedMatchdays);
-  };
-
-  const toggleMatchStatus = async (matchdayIndex, matchIndex) => {
-    const match = matchdays[matchdayIndex].matches[matchIndex];
-    await handleMatchUpdate(matchdayIndex, matchIndex, 'is_finished', !match.is_finished);
-    
-    // If the match is being marked as finished, update team statistics
-    if (!match.is_finished) {
-      try {
-        await updateTeamStatistics(match.matchday);
-      } catch (error) {
-        console.error('Error updating team statistics:', error);
-        setError('Failed to update team statistics. Please try again.');
-      }
-    }
-  };
-
-  const openEditEventsModal = (matchdayIndex, matchIndex) => {
-    setSelectedMatch({ matchdayIndex, matchIndex });
-    setIsModalOpen(true);
-  };
-
-  const closeEditEventsModal = () => {
-    setIsModalOpen(false);
-    setSelectedMatch(null);
   };
 
   const handleDeleteMatchday = async (matchdayId) => {
@@ -214,96 +219,25 @@ const AdminFixtures = () => {
       const isConfirmed = window.confirm(
         "Are you sure you want to delete this matchday? This action cannot be undone and will delete all associated matches and events."
       );
-
-      if (!isConfirmed) {
-        return; // User cancelled the deletion
-      }
-
+      if (!isConfirmed) return;
       await deleteMatchday(matchdayId);
       setMatchdays(matchdays.filter(matchday => matchday.id !== matchdayId));
+      toast.success('Matchday deleted successfully');
     } catch (err) {
       console.error('Error deleting matchday:', err);
       setError('Failed to delete matchday. Please try again.');
-    }
-  };
-
-  const handleAddMatch = async (matchdayId, matchdayIndex) => {
-    try {
-      const newMatch = await createMatch(matchdayId);
-      
-      const updatedMatchdays = matchdays.map((matchday, index) => {
-        if (index === matchdayIndex) {
-          return {
-            ...matchday,
-            matches: Array.isArray(matchday.matches) 
-              ? [...matchday.matches, {
-                  ...newMatch,
-                  home_team: '',
-                  away_team: '',
-                  home_team_logo: '',
-                  away_team_logo: '',
-                  home_team_id: '',
-                  away_team_id: '',
-                  events: []
-                }]
-              : [{
-                  ...newMatch,
-                  home_team: '',
-                  away_team: '',
-                  home_team_logo: '',
-                  away_team_logo: '',
-                  home_team_id: '',
-                  away_team_id: '',
-                  events: []
-                }]
-          };
-        }
-        return matchday;
-      });
-      
-      setMatchdays(updatedMatchdays);
-    } catch (err) {
-      console.error('Error adding match:', err);
-      setError('Failed to add match. Please try again.');
-    }
-  };
-
-  const handleSaveMatchday = async () => {
-    try {
-      console.log('Starting team statistics update');
-      
-      // Update all team statistics
-      const result = await updateTeamStatistics();
-      
-      if (result) {
-        console.log('Team statistics updated successfully');
-        toast.success('Team statistics updated successfully');
-      } else {
-        console.log('No updates were necessary');
-        toast.info('No finished matches to update');
-      }
-    } catch (error) {
-      console.error('Error updating team statistics:', error);
-      toast.error('Failed to update team statistics');
+      toast.error('Failed to delete matchday');
     }
   };
 
   const handleDeleteMatch = async (matchdayIndex, matchIndex) => {
     try {
       const match = matchdays[matchdayIndex].matches[matchIndex];
-      
       const isConfirmed = window.confirm(
         "Are you sure you want to delete this match? This action cannot be undone."
       );
-
-      if (!isConfirmed) {
-        return;
-      }
-
-      // Delete the match from PocketBase
+      if (!isConfirmed) return;
       await pb.collection('matches').delete(match.id);
-
-      // Update local state
       const updatedMatchdays = matchdays.map((matchday, mdIndex) => {
         if (mdIndex === matchdayIndex) {
           return {
@@ -313,12 +247,71 @@ const AdminFixtures = () => {
         }
         return matchday;
       });
-
       setMatchdays(updatedMatchdays);
       toast.success('Match deleted successfully');
     } catch (error) {
       console.error('Error deleting match:', error);
       toast.error('Failed to delete match');
+    }
+  };
+
+  const openEditResultModal = (matchdayIndex, matchIndex) => {
+    // Get the actual matchday from the filtered array
+    const matchday = filteredMatchdays[matchdayIndex];
+    if (!matchday || !matchday.matches[matchIndex]) {
+      console.error('Match not found:', { matchdayIndex, matchIndex });
+      toast.error('Error: Match not found');
+      return;
+    }
+    setSelectedResultMatch({ matchdayIndex, matchIndex });
+  };
+
+  const closeEditResultModal = () => {
+    setSelectedResultMatch(null);
+  };
+
+  const handleSaveMatchdayStats = async (matchdayPhase) => {
+    try {
+      const stage = getStageFromPhase(matchdayPhase);
+      const result = await updateTeamStatistics(stage);
+      if(result){
+        toast.success('Team statistics updated successfully for stage: ' + stage);
+      } else {
+        toast.info('No finished matches to update');
+      }
+    } catch (error) {
+      console.error('Error updating team statistics:', error);
+      toast.error('Failed to update team statistics');
+    }
+  };
+
+  // Helper to enrich a match object with team names using the teams array.
+  const enrichMatch = (match) => {
+    return {
+      ...match,
+      home_team: teams.find(t => t.id === match.home_team_id) || { id: match.home_team_id, name: match.home_team },
+      away_team: teams.find(t => t.id === match.away_team_id) || { id: match.away_team_id, name: match.away_team }
+    };
+  };
+
+  // Add this function to handle opening the events modal
+  const openEventsModal = (matchdayIndex, matchIndex) => {
+    // We need to use the filtered matchdays since that's what we're displaying
+    const match = filteredMatchdays[matchdayIndex].matches[matchIndex];
+    if (!match) {
+      console.error('Match not found:', { matchdayIndex, matchIndex });
+      toast.error('Error: Match not found');
+      return;
+    }
+    
+    // Find the actual index in the full matchdays array
+    const fullMatchdayIndex = matchdays.findIndex(md => md.id === filteredMatchdays[matchdayIndex].id);
+    if (fullMatchdayIndex !== -1) {
+      setSelectedMatch({ 
+        matchdayIndex: fullMatchdayIndex, // Use the index from full array
+        matchIndex: matchIndex 
+      });
+      setIsModalOpen(true);
     }
   };
 
@@ -352,17 +345,13 @@ const AdminFixtures = () => {
           </div>
           <div className="flex items-center space-x-3">
             <select
-              value={newMatchdayPhase}
-              onChange={(e) => setNewMatchdayPhase(e.target.value)}
+              value={selectedAdminPhase}
+              onChange={(e) => setSelectedAdminPhase(e.target.value)}
               className="p-3 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="group_a">Group A</option>
-              <option value="group_b">Group B</option>
-              <option value="gold_group">Gold Group</option>
-              <option value="silver_group">Silver Group</option>
-              <option value="bronze_group">Bronze Group</option>
-              <option value="semi_finals">Semi Finals</option>
-              <option value="finals">Finals</option>
+              {phaseOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
             <button 
               onClick={handleCreateMatchday}
@@ -374,289 +363,154 @@ const AdminFixtures = () => {
           </div>
         </div>
 
-        {matchdays.map((matchday, mdIndex) => (
-          <div key={matchday.id} className="mb-8 bg-white/95 backdrop-blur rounded-lg shadow-xl overflow-hidden">
-            <div className="bg-gray-800 text-white p-4 rounded-t-lg flex justify-between items-center">
-              <div className="text-2xl font-bold flex items-center space-x-2">
-                <Calendar className="w-6 h-6" />
-                <span>
-                  {matchday.phase === 'gold_semi' && 'Semifinal Oro'}
-                  {matchday.phase === 'gold_final' && 'Final Oro'}
-                  {matchday.phase === 'silver_semi' && 'Semifinal Plata'}
-                  {matchday.phase === 'silver_final' && 'Final Plata'}
-                  {!matchday.phase || matchday.phase === 'regular' ? `Jornada ${matchday.number}` : ''}
-                </span>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleAddMatch(matchday.id, mdIndex)}
-                  className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Match</span>
-                </button>
-                <button
-                  onClick={() => handleSaveMatchday(matchday.id)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Save</span>
-                </button>
-                <button
-                  onClick={() => handleDeleteMatchday(matchday.id)}
-                  className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              {matchday.matches && matchday.matches.length > 0 ? (
-                matchday.matches.map((match, matchIndex) => (
-                  <div key={matchIndex} className="mb-4 last:mb-0">
-                    {match.away_team === 'FREE' ? (
-                      <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
-                        <div className="flex items-center justify-center space-x-3">
-                          <select
-                            className="p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={match.home_team_id || ""}
-                            onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_team', e.target.value)}
-                          >
-                            <option value="">Select Free Team</option>
-                            {teams.map((team) => (
-                              <option key={team.id} value={team.id}>
-                                {team.name}
-                              </option>
-                            ))}
-                          </select>
-                          <p className="text-center text-gray-700 font-medium">
-                            has a bye week.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
-                        <div className="flex items-center justify-between space-x-4">
-                          {/* Home Team */}
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                            {match.home_team && (
-                              <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
-                                <img
-                                  src={match.home_team_logo 
-                                    ? pb.getFileUrl({ collectionId: '6hkvwfswk61t3b1', collectionName: 'teams', id: match.home_team_id }, match.home_team_logo)
-                                    : ''}
-                                  alt={match.home_team}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            )}
-                              <select
-                                className="flex-1 p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                value={match.home_team_id || ""}
-                                onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_team', e.target.value)}
-                                disabled={match.is_finished}
-                              >
-                                <option value="">Select Home Team</option>
-                                {teams.map((team) => (
-                                  <option key={team.id} value={team.id}>
-                                    {team.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-
-                          {/* Score Section */}
-                          <div className="flex items-center space-x-4 bg-gray-800 rounded-xl px-6 py-3">
-                            <div className="flex flex-col items-center">
-                              <input
-                                type="number"
-                                placeholder="0"
-                                className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                                value={match.home_team_score || 0}
-                                onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_team_score', parseInt(e.target.value) || 0)}
-                                disabled={match.is_finished}
-                                min="0"
-                              />
-                              {(matchday.phase !== 'regular' && match.home_team_score === match.away_team_score) && (
-                                <input
-                                  type="number"
-                                  placeholder="Penales"
-                                  className="w-16 h-8 mt-2 text-center text-sm font-bold bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                                  value={match.home_penalties || 0}
-                                  onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'home_penalties', parseInt(e.target.value) || 0)}
-                                  disabled={match.is_finished}
-                                  min="0"
-                                />
-                              )}
-                            </div>
-                            <span className="text-2xl font-bold text-white">:</span>
-                            <div className="flex flex-col items-center">
-                              <input
-                                type="number"
-                                placeholder="0"
-                                className="w-16 h-12 text-center text-2xl font-bold bg-gray-900 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                                value={match.away_team_score || 0}
-                                onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'away_team_score', parseInt(e.target.value) || 0)}
-                                disabled={match.is_finished}
-                                min="0"
-                              />
-                              {(matchday.phase !== 'regular' && match.home_team_score === match.away_team_score) && (
-                                <input
-                                  type="number"
-                                  placeholder="Penales"
-                                  className="w-16 h-8 mt-2 text-center text-sm font-bold bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                                  value={match.away_penalties || 0}
-                                  onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'away_penalties', parseInt(e.target.value) || 0)}
-                                  disabled={match.is_finished}
-                                  min="0"
-                                />
-                              )}
-                            </div>
-                          </div>
-                          {/* Away Team */}
-                          <div className="flex-1">
-                            <div className="flex items-center justify-end space-x-3">
-                              <select
-                                className="flex-1 p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                value={match.away_team_id || ""}
-                                onChange={(e) => handleMatchUpdate(mdIndex, matchIndex, 'away_team', e.target.value)}
-                                disabled={match.is_finished}
-                              >
-                                <option value="">Select Away Team</option>
-                                {teams.map((team) => (
-                                  <option key={team.id} value={team.id}>
-                                    {team.name}
-                                  </option>
-                                ))}
-                              </select>
-                              {match.away_team && match.away_team !== 'FREE' && (
-                                <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
-                                  <img
-                                    src={match.away_team_logo 
-                                      ? pb.getFileUrl({ collectionId: '6hkvwfswk61t3b1', collectionName: 'teams', id: match.away_team_id }, match.away_team_logo)
-                                      : ''}
-                                    alt={match.away_team}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Match Events Summary */}
-                        {match.events && match.events.length > 0 && (
-                          <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-                            <h4 className="text-sm font-semibold text-gray-600 mb-2">Match Events</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {match.events.map(event => (
-                                <div
-                                  key={event.id}
-                                  className={`text-xs px-2 py-1 rounded-full ${
-                                    event.team === 'home' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
-                                  }`}
-                                >
-                                  {event.minute}' - {event.player} ({event.type})
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Match Controls */}
-                        <div className="flex justify-between mt-4">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => toggleMatchStatus(mdIndex, matchIndex)}
-                              className={`${
-                                match.is_finished
-                                  ? 'bg-yellow-500 hover:bg-yellow-600'
-                                  : 'bg-blue-500 hover:bg-blue-600'
-                              } text-white font-bold py-2 px-4 rounded`}
-                            >
-                              {match.is_finished ? 'Edit Match' : 'End Match'}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteMatch(mdIndex, matchIndex)}
-                              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-                            >
-                              Delete Match
-                            </button>
-                          </div>
-                          <button
-                            onClick={() => openEditEventsModal(mdIndex, matchIndex)}
-                            disabled={!match.home_team || !match.away_team}
-                            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Edit Match Events
-                          </button>
-                        </div>
-
-                        <div className="mt-4 flex justify-center items-center space-x-4 bg-gray-100 p-4 rounded-lg">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="w-5 h-5 text-gray-500" />
-                            <input
-                              type="date"
-                              className="p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
-                              value={match.date_time ? new Date(match.date_time).toISOString().split('T')[0] : ''}
-                              onChange={(e) => {
-                                const currentTime = match.date_time 
-                                  ? new Date(match.date_time).toLocaleTimeString('en-GB')
-                                  : '00:00';
-                                const newDateTime = new Date(`${e.target.value}T${currentTime}`);
-                                handleMatchUpdate(mdIndex, matchIndex, 'date_time', newDateTime.toISOString());
-                              }}
-                              disabled={match.is_finished}
-                            />
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Clock className="w-5 h-5 text-gray-500" />
-                            <input
-                              type="time"
-                              className="p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
-                              value={match.date_time ? 
-                                new Date(match.date_time).toLocaleTimeString('en-GB', { 
-                                  hour: '2-digit', 
-                                  minute: '2-digit',
-                                  hour12: false 
-                                }) : 
-                                ''
-                              }
-                              onChange={(e) => {
-                                const currentDate = match.date_time 
-                                  ? new Date(match.date_time).toISOString().split('T')[0]
-                                  : new Date().toISOString().split('T')[0];
-                                const newDateTime = new Date(`${currentDate}T${e.target.value}:00`);
-                                handleMatchUpdate(mdIndex, matchIndex, 'date_time', newDateTime.toISOString());
-                              }}
-                              disabled={match.is_finished}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  No matches scheduled for this matchday yet
-                </div>
-              )}
-            </div>
+        {filteredMatchdays.length === 0 ? (
+          <div className="text-center py-4 text-gray-200">
+            No matchdays scheduled for {phaseOptions.find(o => o.value === selectedAdminPhase)?.label}
           </div>
-        ))}
+        ) : (
+          filteredMatchdays.map((matchday, mdIndex) => (
+            <div key={matchday.id} className="mb-8 bg-white/95 backdrop-blur rounded-lg shadow-xl overflow-hidden">
+              <div className="bg-gray-800 text-white p-4 rounded-t-lg flex justify-between items-center">
+                <div className="text-2xl font-bold flex items-center space-x-2">
+                  <Calendar className="w-6 h-6" />
+                  <span>
+                    {phaseOptions.find(o => o.value === matchday.phase)?.label} - Jornada {matchday.number}
+                  </span>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleSaveMatchdayStats(matchday.phase)}
+                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Save Matchday</span>
+                  </button>
+                  <button
+                    onClick={() => handleAddMatch(matchday.id)}
+                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Match</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteMatchday(matchday.id)}
+                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                {matchday.matches && matchday.matches.length > 0 ? (
+                  matchday.matches.map((match, matchIndex) => (
+                    <div key={matchIndex} className="mb-4 p-4 bg-gray-50 rounded-lg shadow-inner flex flex-col md:flex-row md:items-center md:justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          {match.home_team_logo ? (
+                            <img src={pb.getFileUrl({ id: match.home_team_id, collectionName: 'teams' }, match.home_team_logo)} alt={match.home_team} className="w-10 h-10 rounded-full" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                              {match.home_team}
+                            </div>
+                          )}
+                          <span className="font-bold text-gray-800">{match.home_team}</span>
+                        </div>
+                        <span className="text-gray-600">vs</span>
+                        <div className="flex items-center space-x-2">
+                          {match.away_team_logo ? (
+                            <img src={pb.getFileUrl({ id: match.away_team_id, collectionName: 'teams' }, match.away_team_logo)} alt={match.away_team} className="w-10 h-10 rounded-full" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                              {match.away_team}
+                            </div>
+                          )}
+                          <span className="font-bold text-gray-800">{match.away_team}</span>
+                        </div>
+                      </div>
+                      <div className="mt-4 md:mt-0">
+                        <p className="text-gray-600">
+                          {match.date_time ? new Date(match.date_time).toLocaleDateString() + ' ' + new Date(match.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No date set'}
+                        </p>
+                        {match.is_finished && (
+                          <p className="text-green-600 font-bold">
+                            Result: {match.home_team_score} - {match.away_team_score}
+                          </p>
+                        )}
+                      </div>
+                      <div className="mt-4 md:mt-0 flex space-x-2">
+                        <button
+                          onClick={() => openEditResultModal(mdIndex, matchIndex)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                        >
+                          Edit Result
+                        </button>
+                        {match.is_finished && (
+                          <button
+                            onClick={() => openEventsModal(mdIndex, matchIndex)}
+                            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+                          >
+                            Edit Events
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteMatch(mdIndex, matchIndex)}
+                          className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+                        >
+                          Delete Match
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    No matches scheduled for this matchday yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          ))
+        )}
 
-        {/* Match Events Modal */}
+        {/* Update the events modal section */}
         {isModalOpen && selectedMatch && (
           <AdminMatchEvents
-            match={matchdays[selectedMatch.matchdayIndex].matches[selectedMatch.matchIndex]}
-            matchdayIndex={selectedMatch.matchdayIndex}
-            matchIndex={selectedMatch.matchIndex}
-            onClose={closeEditEventsModal}
-            updateMatchEvents={updateMatchEvents}
+            // Enrich the match object with team names before passing it on
+            match={enrichMatch(matchdays[selectedMatch.matchdayIndex].matches[selectedMatch.matchIndex])}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedMatch(null);
+            }}
+            updateMatchEvents={async (events) => {
+              try {
+                // Update the local state with new events
+                const updatedMatchdays = [...matchdays];
+                updatedMatchdays[selectedMatch.matchdayIndex].matches[selectedMatch.matchIndex].events = events;
+                setMatchdays(updatedMatchdays);
+                toast.success('Match events updated successfully');
+              } catch (error) {
+                console.error('Error updating match events:', error);
+                toast.error('Failed to update match events');
+              }
+            }}
+          />
+        )}
+
+        {/* Render the result modal when a match is selected for editing */}
+        {selectedResultMatch && (
+          <AdminMatchResultModal
+            match={filteredMatchdays[selectedResultMatch.matchdayIndex]?.matches[selectedResultMatch.matchIndex]}
+            teams={teams}
+            onSave={(updatedData) => {
+              // Find the actual index in the full matchdays array
+              const fullMatchdayIndex = matchdays.findIndex(
+                md => md.id === filteredMatchdays[selectedResultMatch.matchdayIndex].id
+              );
+              if (fullMatchdayIndex !== -1) {
+                handleResultSave(fullMatchdayIndex, selectedResultMatch.matchIndex, updatedData);
+              }
+              closeEditResultModal();
+            }}
+            onCancel={closeEditResultModal}
           />
         )}
       </div>

@@ -12,6 +12,7 @@ import {
 import { createEvent, deleteEvent, fetchEvents } from '../../hooks/admin/matchEventHandlers';
 import { updatePlayerStatistics } from '../../utils/playersUtils';
 import { toast } from 'react-toastify';
+import { pb } from '../../config';
 
 const EVENT_TYPES = {
   GOAL: 'goal',
@@ -79,9 +80,27 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
 
   const loadEvents = async () => {
     try {
-      const fetchedEvents = await fetchEvents(match.id);
-      setEvents(fetchedEvents);
-      return fetchedEvents;
+      const response = await pb.collection('events').getList(1, 50, {
+        filter: `match="${match.id}"`,
+        sort: '+created',
+        expand: 'player,player.team',
+        $autoCancel: false
+      });
+      
+      // Transform the events to ensure player data is accessible
+      const transformedEvents = response.items.map(event => {
+        console.log('Raw event data:', event); // Debug log
+        return {
+          ...event,
+          player_name: event.expand?.player 
+            ? `${event.expand.player.first_name} ${event.expand.player.last_name}`
+            : (event.player ? `Unknown Player (${event.player})` : 'Unknown Player')
+        };
+      });
+      
+      console.log('Transformed events:', transformedEvents);
+      setEvents(transformedEvents);
+      return transformedEvents;
     } catch (error) {
       console.error('Error loading events:', error);
       toast.error('Failed to load match events');
@@ -98,11 +117,13 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
     }
 
     try {
+      const selectedPlayerData = currentPlayers.find(p => p.id === selectedPlayer);
       const eventData = {
         type: eventType,
         player: selectedPlayer,
         match: match.id,
-        team: selectedTeam === 'home' ? match.home_team_id : match.away_team_id
+        team: selectedTeam === 'home' ? match.home_team_id : match.away_team_id,
+        player_name: selectedPlayerData?.name // Add player name to event data
       };
       
       console.log('Saving event data:', eventData);
@@ -130,7 +151,19 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
     }
   };
 
-  const currentPlayers = selectedTeam === 'home' ? homePlayers : awayPlayers;
+  // Format the players data correctly
+  const formatPlayers = (players) => {
+    return players?.map(player => ({
+      id: player.id,
+      name: `${player.first_name} ${player.last_name}`
+    })) || [];
+  };
+
+  // Get the current team's players based on selection
+  const currentPlayers = selectedTeam === 'home' 
+    ? formatPlayers(homePlayers)
+    : formatPlayers(awayPlayers);
+
   const isLoading = homeLoading || awayLoading || loading;
 
   return (
@@ -208,17 +241,17 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
                     console.log('Event data:', event);
                     
                     const EventIcon = getEventIcon(event.type);
-                    const player = event.team === match.home_team_id
-                      ? homePlayers.find(p => p.id === event.player)
-                      : awayPlayers.find(p => p.id === event.player);
+                    const playerName = event.expand?.player 
+                      ? `${event.expand.player.first_name} ${event.expand.player.last_name}`
+                      : event.player_name || 'Unknown Player';
                     
-                    console.log('Found player:', player);
+                    console.log('Player name:', playerName);
 
                     return (
                       <div key={event.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                         <div className="flex items-center space-x-2">
                           {EventIcon}
-                          <span>{player?.name || 'Unknown Player'}</span>
+                          <span>{playerName}</span>
                           <span className="text-sm text-gray-500">
                             ({event.team === match.home_team_id ? 'Home' : 'Away'})
                           </span>

@@ -17,8 +17,9 @@ import AdminEditions from '../pages/admin/AdminEditions';
 import ProtectedRoute from '../components/admin/ProtectedRoute';
 import PlayerStatistics from '../pages/PlayerStatistics';
 import Editions from '../pages/Editions';
+import HistoricalTable from '../pages/HistoricalTable';
 
-const AppRoutes = () => {
+const Router = () => {
   return (
     <Routes>
       {/* Public routes */}
@@ -30,10 +31,11 @@ const AppRoutes = () => {
       <Route path="/teams/:teamId" element={<TeamDetails />} />
       <Route path="/admin/login" element={<Login />} />
       <Route path="/editions" element={<Editions />} />
+      <Route path="/historical-table" element={<HistoricalTable />} />
 
       {/* Protected admin routes */}
-      <Route element={<ProtectedRoute />}> {/* Remove the path="/admin" from here */}
-        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} /> {/* Add this line */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/teams" element={<AdminTeams />} />
         <Route path="/admin/players" element={<AdminPlayers />} />
@@ -47,4 +49,4 @@ const AppRoutes = () => {
   );
 };
 
-export default AppRoutes;
+export default Router;

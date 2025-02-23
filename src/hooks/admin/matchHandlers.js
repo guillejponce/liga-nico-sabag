@@ -47,8 +47,8 @@ export const createMatch = async (matchdayId) => {
       date_time: new Date().toISOString(),
       home_team: null,
       away_team: null,
-      home_team_score: 0,
-      away_team_score: 0,
+      home_team_score: null,
+      away_team_score: null,
       is_finished: false,
       events: []
     };
@@ -67,14 +67,29 @@ export const updateMatch = async (id, matchData) => {
   try {
     // If match is being marked as finished, ensure scores are valid numbers
     if (matchData.is_finished === true) {
-      const homeScore = Number(matchData.home_team_score ?? 0);
-      const awayScore = Number(matchData.away_team_score ?? 0);
+      const homeScore = matchData.home_team_score;
+      const awayScore = matchData.away_team_score;
+      
+      // Validate that scores are provided and are valid numbers
+      if (homeScore === null || awayScore === null || 
+          isNaN(Number(homeScore)) || isNaN(Number(awayScore))) {
+        throw new Error('Valid scores are required to mark a match as finished');
+      }
       
       // Update the matchData with converted scores
       matchData = {
         ...matchData,
-        home_team_score: homeScore,
-        away_team_score: awayScore
+        home_team_score: Number(homeScore),
+        away_team_score: Number(awayScore)
+      };
+    }
+
+    // If match is unfinished, ensure scores are null
+    if (matchData.is_finished === false) {
+      matchData = {
+        ...matchData,
+        home_team_score: null,
+        away_team_score: null
       };
     }
 

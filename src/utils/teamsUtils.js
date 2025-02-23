@@ -17,6 +17,13 @@ export const updateTeamStatistics = async (selectedStage) => {
     console.log('Starting team statistics update for stage:', selectedStage);
     const phases = getPhasesByStage(selectedStage);
     
+    // Get current edition
+    const currentEdition = await pb.collection('editions').getFirstListItem('is_current = true');
+    if (!currentEdition) {
+      throw new Error('No current edition found');
+    }
+    console.log('Current edition:', currentEdition);
+
     // 1. Fetch all teams and reset their statistics
     const teams = await pb.collection('teams').getFullList();
     await Promise.all(
@@ -32,9 +39,11 @@ export const updateTeamStatistics = async (selectedStage) => {
       })
     );
 
-    // 2. Build a filter string with proper spacing
+    // 2. Build a filter string with proper spacing and current season
     const phaseFilters = phases.map(phase => `matchday.phase="${phase}"`).join(' || ');
-    const filterString = `is_finished=true && (${phaseFilters})`;
+    const filterString = `is_finished=true && matchday.season="${currentEdition.id}" && (${phaseFilters})`;
+    console.log('Using filter:', filterString);
+
     const matchesResponse = await pb.collection('matches').getList(1, 500, {
       filter: filterString,
       expand: 'home_team,away_team,matchday'
@@ -119,8 +128,15 @@ export const calculateTeamStats = (team) => {
 // Returns an array of team IDs that have participated in matches for a given phase
 export const getTeamsByPhase = async (phase) => {
   try {
+    // Get current edition
+    const currentEdition = await pb.collection('editions').getFirstListItem('is_current = true');
+    if (!currentEdition) {
+      console.log('No current edition found');
+      return [];
+    }
+
     const matches = await pb.collection('matches').getList(1, 500, {
-      filter: `matchday.phase="${phase}"`,
+      filter: `matchday.phase="${phase}" && matchday.season="${currentEdition.id}"`,
       expand: 'home_team,away_team'
     });
     const teamIds = new Set();

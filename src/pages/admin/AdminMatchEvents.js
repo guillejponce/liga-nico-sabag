@@ -74,6 +74,7 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
   const [selectedTeam, setSelectedTeam] = useState('home');
   const [eventType, setEventType] = useState(eventTypes[0].value);
   const [selectedPlayer, setSelectedPlayer] = useState('');
+  const [saveStatus, setSaveStatus] = useState(null);
 
   useEffect(() => {
     loadEvents();
@@ -177,6 +178,7 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
 
   const handleSaveStats = async () => {
     try {
+      setSaveStatus('saving');
       console.log('Starting to update player statistics...');
       
       // Get current events to verify they exist
@@ -191,12 +193,19 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
       
       if (result) {
         toast.success('Player statistics updated successfully');
+        setSaveStatus('saved');
+        // Reset status after 3 seconds
+        setTimeout(() => setSaveStatus(null), 3000);
       } else {
         toast.warning('No statistics were updated');
+        setSaveStatus(null);
       }
     } catch (error) {
       console.error('Error updating player statistics:', error);
       toast.error('Failed to update player statistics: ' + error.message);
+      setSaveStatus('error');
+      // Reset error status after 3 seconds
+      setTimeout(() => setSaveStatus(null), 3000);
     }
   };
 
@@ -208,10 +217,25 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
           <div className="flex space-x-2">
             <button
               onClick={handleSaveStats}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
+              disabled={saveStatus === 'saving'}
+              className={`${
+                saveStatus === 'saved'
+                  ? 'bg-green-500 hover:bg-green-600'
+                  : saveStatus === 'error'
+                  ? 'bg-red-500 hover:bg-red-600'
+                  : 'bg-blue-500 hover:bg-blue-600'
+              } text-white font-bold py-2 px-4 rounded flex items-center space-x-1 transition-colors duration-200`}
             >
               <Save className="w-4 h-4" />
-              <span>Save Stats</span>
+              <span>
+                {saveStatus === 'saving'
+                  ? 'Saving...'
+                  : saveStatus === 'saved'
+                  ? 'Saved!'
+                  : saveStatus === 'error'
+                  ? 'Error!'
+                  : 'Save Stats'}
+              </span>
             </button>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
               <X className="w-6 h-6" />

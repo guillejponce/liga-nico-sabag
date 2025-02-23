@@ -19,10 +19,10 @@ const AdminMatchResultModal = ({ match, teams, onSave, onCancel }) => {
       setAwayTeam(match.away_team_id || '');
       setDate(matchDateTime.toISOString().split('T')[0]);
       setTime(matchDateTime.toTimeString().slice(0,5));
-      setHomeTeamScore(match.home_team_score || 0);
-      setAwayTeamScore(match.away_team_score || 0);
-      setHomePenalties(match.home_penalties || 0);
-      setAwayPenalties(match.away_penalties || 0);
+      setHomeTeamScore(match.home_team_score ?? 0);
+      setAwayTeamScore(match.away_team_score ?? 0);
+      setHomePenalties(match.home_penalties ?? 0);
+      setAwayPenalties(match.away_penalties ?? 0);
     }
   }, [match]);
 
@@ -35,7 +35,7 @@ const AdminMatchResultModal = ({ match, teams, onSave, onCancel }) => {
   // Show penalty inputs if the scores are equal.
   const showPenalties = Number(homeTeamScore) === Number(awayTeamScore);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e, shouldFinish = false) => {
     e.preventDefault();
     // Combine date and time into a single ISO string.
     const newDateTime = new Date(`${date}T${time}:00`).toISOString();
@@ -46,7 +46,7 @@ const AdminMatchResultModal = ({ match, teams, onSave, onCancel }) => {
       away_team: awayTeam,
       home_team_score: Number(homeTeamScore),
       away_team_score: Number(awayTeamScore),
-      is_finished: true, // Mark the match as finished when saving results.
+      is_finished: shouldFinish // Only set to true when ending the match
     };
     if (showPenalties) {
       updatedData.home_penalties = Number(homePenalties);
@@ -59,7 +59,7 @@ const AdminMatchResultModal = ({ match, teams, onSave, onCancel }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
         <h2 className="text-2xl font-bold mb-4">Edit Match Result</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-4">
           <div>
             <label className="block text-gray-700 font-semibold mb-1">Home Team</label>
             <select
@@ -157,7 +157,14 @@ const AdminMatchResultModal = ({ match, teams, onSave, onCancel }) => {
               Cancel
             </button>
             <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
-              Save
+              Save Details
+            </button>
+            <button 
+              type="button" 
+              onClick={(e) => handleSubmit(e, true)}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+            >
+              End Match
             </button>
           </div>
         </form>

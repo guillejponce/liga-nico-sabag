@@ -46,6 +46,7 @@ const AdminFixtures = () => {
 
   // Add this state at the top with other states
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [savedMatchdays, setSavedMatchdays] = useState({}); // Track saved state for each matchday
 
   useEffect(() => {
     let mounted = true;
@@ -94,8 +95,10 @@ const AdminFixtures = () => {
     };
   }, []);
 
-  // Filter matchdays by the currently selected phase
-  const filteredMatchdays = matchdays.filter(matchday => matchday.phase === selectedAdminPhase);
+  // Filter matchdays by the currently selected phase and sort by number (newest first)
+  const filteredMatchdays = matchdays
+    .filter(matchday => matchday.phase === selectedAdminPhase)
+    .sort((a, b) => b.number - a.number);
 
   const handleCreateMatchday = async () => {
     try {
@@ -271,8 +274,10 @@ const AdminFixtures = () => {
     setSelectedResultMatch(null);
   };
 
-  const handleSaveMatchdayStats = async (matchdayPhase) => {
+  const handleSaveMatchdayStats = async (matchdayId, matchdayPhase) => {
     try {
+      setSavedMatchdays(prev => ({ ...prev, [matchdayId]: 'saving' }));
+      
       // First update team statistics
       const stage = getStageFromPhase(matchdayPhase);
       const teamStatsResult = await updateTeamStatistics(stage);
@@ -282,16 +287,26 @@ const AdminFixtures = () => {
 
       if (teamStatsResult && playerStatsResult) {
         toast.success('Team and player statistics updated successfully');
+        setSavedMatchdays(prev => ({ ...prev, [matchdayId]: 'saved' }));
+        
+        // Reset the saved state after 3 seconds
+        setTimeout(() => {
+          setSavedMatchdays(prev => ({ ...prev, [matchdayId]: null }));
+        }, 3000);
       } else if (teamStatsResult) {
         toast.info('Team statistics updated, but no player statistics to update');
+        setSavedMatchdays(prev => ({ ...prev, [matchdayId]: 'saved' }));
       } else if (playerStatsResult) {
         toast.info('Player statistics updated, but no team statistics to update');
+        setSavedMatchdays(prev => ({ ...prev, [matchdayId]: 'saved' }));
       } else {
         toast.info('No finished matches to update');
+        setSavedMatchdays(prev => ({ ...prev, [matchdayId]: null }));
       }
     } catch (error) {
       console.error('Error updating statistics:', error);
       toast.error('Failed to update statistics: ' + error.message);
+      setSavedMatchdays(prev => ({ ...prev, [matchdayId]: 'error' }));
     }
   };
 
@@ -389,11 +404,26 @@ const AdminFixtures = () => {
                 </div>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => handleSaveMatchdayStats(matchday.phase)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
+                    onClick={() => handleSaveMatchdayStats(matchday.id, matchday.phase)}
+                    disabled={savedMatchdays[matchday.id] === 'saving'}
+                    className={`${
+                      savedMatchdays[matchday.id] === 'saved'
+                        ? 'bg-green-500 hover:bg-green-600'
+                        : savedMatchdays[matchday.id] === 'error'
+                        ? 'bg-red-500 hover:bg-red-600'
+                        : 'bg-blue-500 hover:bg-blue-600'
+                    } text-white font-bold py-2 px-4 rounded flex items-center space-x-1 transition-colors duration-200`}
                   >
                     <Save className="w-4 h-4" />
-                    <span>Save Matchday</span>
+                    <span>
+                      {savedMatchdays[matchday.id] === 'saving'
+                        ? 'Saving...'
+                        : savedMatchdays[matchday.id] === 'saved'
+                        ? 'Saved!'
+                        : savedMatchdays[matchday.id] === 'error'
+                        ? 'Error!'
+                        : 'Save Matchday'}
+                    </span>
                   </button>
                   <button
                     onClick={() => handleAddMatch(matchday.id)}

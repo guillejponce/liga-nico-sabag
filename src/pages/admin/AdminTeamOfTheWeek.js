@@ -7,14 +7,36 @@ import {
   deleteTeamOfTheWeek,
   FORMATIONS 
 } from '../../hooks/admin/teamOfTheWeekHandlers';
-import { fetchMatchdays } from '../../hooks/admin/matchdayHandlers';
+import { fetchMatchdays, PHASE_OPTIONS } from '../../hooks/admin/matchdayHandlers';
 import { fetchPlayers } from '../../hooks/admin/playerHandlers';
+import { fetchCurrentEdition } from '../../hooks/admin/editionHandlers';
 import { toast } from 'react-toastify';
 import { debounce } from 'lodash';
 import SoccerPitch from '../../components/teams/SoccerPitch';
 
+// Helper function to get phase type
+const getPhaseType = (phase) => {
+  if (phase.includes('group_a') || phase.includes('group_b')) return 'groups';
+  if (phase.includes('gold_group') || phase.includes('silver_group') || phase.includes('bronze_group')) return 'playoffs';
+  if (phase.includes('semi')) return 'semifinals';
+  if (phase.includes('final')) return 'finals';
+  return phase;
+};
+
+// Helper function to get phase label
+const getPhaseTypeLabel = (phaseType) => {
+  const labels = {
+    'groups': 'Fase de Grupos',
+    'playoffs': 'Playoffs',
+    'semifinals': 'Semifinales',
+    'finals': 'Finales'
+  };
+  return labels[phaseType] || phaseType;
+};
+
 const AdminTeamOfTheWeek = () => {
   const [matchdays, setMatchdays] = useState([]);
+  const [groupedMatchdays, setGroupedMatchdays] = useState([]);
   const [selectedMatchday, setSelectedMatchday] = useState(null);
   const [teamOfTheWeek, setTeamOfTheWeek] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -57,11 +79,56 @@ const AdminTeamOfTheWeek = () => {
     const loadData = async () => {
       try {
         setLoading(true);
+        
+        // First get current edition
+        const currentEdition = await fetchCurrentEdition();
+        if (!currentEdition) {
+          setError('No hay temporada activa en este momento.');
+          setLoading(false);
+          return;
+        }
+
+        // Then fetch matchdays for current edition and players
         const [fetchedMatchdays, { players: fetchedPlayers }] = await Promise.all([
           fetchMatchdays(),
           fetchPlayers('', '', abortController.signal)
         ]);
-        setMatchdays(fetchedMatchdays);
+
+        // Filter matchdays by current edition
+        const currentEditionMatchdays = fetchedMatchdays.filter(
+          matchday => matchday.expand?.season?.id === currentEdition.id
+        );
+
+        // Group matchdays by phase type and round number
+        const grouped = currentEditionMatchdays.reduce((acc, matchday) => {
+          const phaseType = getPhaseType(matchday.phase);
+          const key = `${phaseType}-${matchday.number}`;
+          
+          if (!acc[key]) {
+            acc[key] = {
+              phaseType,
+              number: matchday.number,
+              matchdays: []
+            };
+          }
+          
+          acc[key].matchdays.push(matchday);
+          return acc;
+        }, {});
+
+        // Convert to array and sort
+        const groupedArray = Object.values(grouped).sort((a, b) => {
+          // Sort by phase type first
+          const phaseOrder = ['groups', 'playoffs', 'semifinals', 'finals'];
+          const phaseComparison = phaseOrder.indexOf(a.phaseType) - phaseOrder.indexOf(b.phaseType);
+          if (phaseComparison !== 0) return phaseComparison;
+          
+          // Then by round number
+          return a.number - b.number;
+        });
+
+        setMatchdays(currentEditionMatchdays);
+        setGroupedMatchdays(groupedArray);
         setPlayers(fetchedPlayers);
         setFilteredPlayers({
           player1: fetchedPlayers,
@@ -246,10 +313,13 @@ const AdminTeamOfTheWeek = () => {
           value={selectedMatchday || ''}
           onChange={(e) => handleMatchdayChange(e.target.value)}
         >
-          <option value="">Select Matchday</option>
-          {matchdays.map((matchday) => (
-            <option key={matchday.id} value={matchday.id}>
-              Matchday {matchday.number}
+          <option value="">Select Round</option>
+          {groupedMatchdays.map((group) => (
+            <option 
+              key={`${group.phaseType}-${group.number}`} 
+              value={group.matchdays[0].id}
+            >
+              {getPhaseTypeLabel(group.phaseType)} - Jornada {group.number}
             </option>
           ))}
         </select>

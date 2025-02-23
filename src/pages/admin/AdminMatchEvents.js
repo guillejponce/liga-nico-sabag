@@ -7,7 +7,8 @@ import {
   Trophy,
   Loader2,
   Plus,
-  X
+  X,
+  Save
 } from 'lucide-react';
 import { createEvent, deleteEvent, fetchEvents } from '../../hooks/admin/matchEventHandlers';
 import { updatePlayerStatistics } from '../../utils/playersUtils';
@@ -123,14 +124,18 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
         player: selectedPlayer,
         match: match.id,
         team: selectedTeam === 'home' ? match.home_team_id : match.away_team_id,
-        player_name: selectedPlayerData?.name // Add player name to event data
+        player_name: selectedPlayerData?.name
       };
       
       console.log('Saving event data:', eventData);
       
       await createEvent(eventData);
       const updatedEvents = await loadEvents();
-      updateMatchEvents(updatedEvents);
+      await updateMatchEvents(updatedEvents);
+      
+      // Update stats after adding event
+      await handleSaveStats();
+      
       setEventType(eventTypes[0].value);
       setSelectedPlayer('');
       toast.success('Event added successfully');
@@ -144,6 +149,10 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
     try {
       await deleteEvent(eventId);
       await loadEvents();
+      
+      // Update stats after removing event
+      await handleSaveStats();
+      
       toast.success('Event removed successfully');
     } catch (error) {
       console.error('Error removing event:', error);
@@ -166,14 +175,48 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
 
   const isLoading = homeLoading || awayLoading || loading;
 
+  const handleSaveStats = async () => {
+    try {
+      console.log('Starting to update player statistics...');
+      
+      // Get current events to verify they exist
+      const currentEvents = await pb.collection('events').getFullList({
+        filter: `match = "${match.id}"`,
+        expand: 'player'
+      });
+      console.log('Current events before updating stats:', currentEvents);
+      
+      const result = await updatePlayerStatistics();
+      console.log('Update player statistics result:', result);
+      
+      if (result) {
+        toast.success('Player statistics updated successfully');
+      } else {
+        toast.warning('No statistics were updated');
+      }
+    } catch (error) {
+      console.error('Error updating player statistics:', error);
+      toast.error('Failed to update player statistics: ' + error.message);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Match Events</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleSaveStats}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
+            >
+              <Save className="w-4 h-4" />
+              <span>Save Stats</span>
+            </button>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {isLoading ? (

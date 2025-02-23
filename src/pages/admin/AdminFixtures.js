@@ -6,6 +6,7 @@ import { fetchMatchdays, createMatchday, deleteMatchday } from '../../hooks/admi
 import { fetchMatchesByMatchday, createMatch, updateMatch as updateMatchAPI } from '../../hooks/admin/matchHandlers';
 import { pb } from '../../config';
 import { updateTeamStatistics } from '../../utils/teamsUtils';
+import { updatePlayerStatistics } from '../../utils/playersUtils';
 import { toast } from 'react-toastify';
 import { useTeams } from '../../hooks/teams/useTeams';
 
@@ -272,16 +273,25 @@ const AdminFixtures = () => {
 
   const handleSaveMatchdayStats = async (matchdayPhase) => {
     try {
+      // First update team statistics
       const stage = getStageFromPhase(matchdayPhase);
-      const result = await updateTeamStatistics(stage);
-      if(result){
-        toast.success('Team statistics updated successfully for stage: ' + stage);
+      const teamStatsResult = await updateTeamStatistics(stage);
+      
+      // Then update player statistics
+      const playerStatsResult = await updatePlayerStatistics();
+
+      if (teamStatsResult && playerStatsResult) {
+        toast.success('Team and player statistics updated successfully');
+      } else if (teamStatsResult) {
+        toast.info('Team statistics updated, but no player statistics to update');
+      } else if (playerStatsResult) {
+        toast.info('Player statistics updated, but no team statistics to update');
       } else {
         toast.info('No finished matches to update');
       }
     } catch (error) {
-      console.error('Error updating team statistics:', error);
-      toast.error('Failed to update team statistics');
+      console.error('Error updating statistics:', error);
+      toast.error('Failed to update statistics: ' + error.message);
     }
   };
 

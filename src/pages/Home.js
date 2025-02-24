@@ -247,8 +247,10 @@ const Home = () => {
           <div className="space-y-2">
             {displayMatches.map((match) => (
               <div key={match.id} className={`flex items-center justify-between p-2 ${bgClass} rounded`}>
-                <TeamDisplay team={match.expand?.home_team} />
-                <div className="flex-shrink-0 w-16 text-center">
+                <div className="flex-1 flex justify-end pr-7">
+                  <TeamDisplay team={match.expand?.home_team} />
+                </div>
+                <div className="flex-shrink-0 flex flex-col items-center justify-center w-20">
                   <div className="text-xs text-gray-500 mb-1">
                     {new Date(match.date_time).toLocaleTimeString([], { 
                       hour: '2-digit', 
@@ -257,7 +259,9 @@ const Home = () => {
                   </div>
                   <span className="text-sm font-bold text-gray-400">VS</span>
                 </div>
-                <TeamDisplay team={match.expand?.away_team} />
+                <div className="flex-1 flex justify-start pl-7">
+                  <TeamDisplay team={match.expand?.away_team} />
+                </div>
               </div>
             ))}
           </div>

@@ -134,9 +134,6 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
       const updatedEvents = await loadEvents();
       await updateMatchEvents(updatedEvents);
       
-      // Update stats after adding event
-      await handleSaveStats();
-      
       setEventType(eventTypes[0].value);
       setSelectedPlayer('');
       toast.success('Event added successfully');
@@ -150,10 +147,6 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
     try {
       await deleteEvent(eventId);
       await loadEvents();
-      
-      // Update stats after removing event
-      await handleSaveStats();
-      
       toast.success('Event removed successfully');
     } catch (error) {
       console.error('Error removing event:', error);
@@ -192,17 +185,17 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
       console.log('Update player statistics result:', result);
       
       if (result) {
-        toast.success('Player statistics updated successfully');
+        toast.success('Estadísticas de jugadores actualizadas correctamente');
         setSaveStatus('saved');
         // Reset status after 3 seconds
         setTimeout(() => setSaveStatus(null), 3000);
       } else {
-        toast.warning('No statistics were updated');
+        toast.warning('No se actualizaron estadísticas');
         setSaveStatus(null);
       }
     } catch (error) {
       console.error('Error updating player statistics:', error);
-      toast.error('Failed to update player statistics: ' + error.message);
+      toast.error('Error al actualizar estadísticas: ' + error.message);
       setSaveStatus('error');
       // Reset error status after 3 seconds
       setTimeout(() => setSaveStatus(null), 3000);

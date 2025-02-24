@@ -221,41 +221,90 @@ const AdminFixtures = () => {
   const handleDeleteMatchday = async (matchdayId) => {
     try {
       const isConfirmed = window.confirm(
-        "Are you sure you want to delete this matchday? This action cannot be undone and will delete all associated matches and events."
+        "¿Estás seguro de que quieres eliminar esta jornada? Esta acción no se puede deshacer y eliminará todos los partidos y eventos asociados."
       );
+      
       if (!isConfirmed) return;
-      await deleteMatchday(matchdayId);
-      setMatchdays(matchdays.filter(matchday => matchday.id !== matchdayId));
-      toast.success('Matchday deleted successfully');
-    } catch (err) {
-      console.error('Error deleting matchday:', err);
-      setError('Failed to delete matchday. Please try again.');
-      toast.error('Failed to delete matchday');
+
+      // First get all matches for this matchday
+      const matches = await pb.collection('matches').getFullList({
+        filter: `matchday="${matchdayId}"`
+      });
+
+      // Delete all events for each match
+      for (const match of matches) {
+        const events = await pb.collection('events').getFullList({
+          filter: `match="${match.id}"`
+        });
+        
+        // Delete each event
+        for (const event of events) {
+          await pb.collection('events').delete(event.id);
+        }
+        
+        // Delete the match
+        await pb.collection('matches').delete(match.id);
+      }
+
+      // Finally delete the matchday
+      await pb.collection('matchdays').delete(matchdayId);
+      
+      // Refresh the matchdays list
+      const updatedMatchdays = await fetchMatchdays();
+      setMatchdays(updatedMatchdays);
+      
+      toast.success('Jornada eliminada correctamente');
+    } catch (error) {
+      console.error('Error deleting matchday:', error);
+      toast.error('Error al eliminar la jornada');
     }
   };
 
   const handleDeleteMatch = async (matchdayIndex, matchIndex) => {
     try {
-      const match = matchdays[matchdayIndex].matches[matchIndex];
+      // Get the match from the filtered matchdays array since that's what we're displaying
+      const match = filteredMatchdays[matchdayIndex]?.matches[matchIndex];
+      
+      if (!match || !match.id) {
+        console.error('Match not found:', { matchdayIndex, matchIndex });
+        toast.error('Error: Match not found');
+        return;
+      }
+
       const isConfirmed = window.confirm(
-        "Are you sure you want to delete this match? This action cannot be undone."
+        "¿Estás seguro de que quieres eliminar este partido? Esta acción no se puede deshacer."
       );
+      
       if (!isConfirmed) return;
+
+      // Delete all events associated with this match first
+      const events = await pb.collection('events').getFullList({
+        filter: `match="${match.id}"`
+      });
+      
+      for (const event of events) {
+        await pb.collection('events').delete(event.id);
+      }
+
+      // Then delete the match
       await pb.collection('matches').delete(match.id);
-      const updatedMatchdays = matchdays.map((matchday, mdIndex) => {
-        if (mdIndex === matchdayIndex) {
+
+      // Update the local state using the matchday ID to ensure we update the correct matchday
+      const updatedMatchdays = matchdays.map(matchday => {
+        if (matchday.id === filteredMatchdays[matchdayIndex].id) {
           return {
             ...matchday,
-            matches: matchday.matches.filter((_, mIndex) => mIndex !== matchIndex)
+            matches: matchday.matches.filter(m => m.id !== match.id)
           };
         }
         return matchday;
       });
+
       setMatchdays(updatedMatchdays);
-      toast.success('Match deleted successfully');
+      toast.success('Partido eliminado correctamente');
     } catch (error) {
       console.error('Error deleting match:', error);
-      toast.error('Failed to delete match');
+      toast.error('Error al eliminar el partido');
     }
   };
 

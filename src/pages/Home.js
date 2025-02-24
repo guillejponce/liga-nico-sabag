@@ -12,6 +12,20 @@ import { fetchBanners } from '../hooks/admin/bannerHandlers';
 import BannerSlider from '../components/layout/bannerslider';
 import { fetchCurrentEdition } from '../hooks/admin/editionHandlers';
 
+const PHASE_LABELS = {
+  group_a: "Grupo A",
+  group_b: "Grupo B",
+  gold_group: "Grupo Oro",
+  silver_group: "Grupo Plata",
+  bronze_group: "Grupo Bronce",
+  gold_semi: "Semifinal Oro",
+  silver_semi: "Semifinal Plata",
+  bronze_semi: "Semifinal Bronce",
+  gold_final: "Final Oro",
+  silver_final: "Final Plata",
+  bronze_final: "Final Bronce",
+};
+
 const Home = () => {
   const [latestTeamOfWeek, setLatestTeamOfWeek] = useState(null);
   const [nextMatchday, setNextMatchday] = useState(null);
@@ -36,93 +50,78 @@ const Home = () => {
           return;
         }
 
-        // Load matchdays and determine the latest phase
+        // Load matchdays and determine the current phase based on the date
         const allMatchdays = await fetchMatchdays();
-        
         // Filter matchdays for current edition
         const matchdays = allMatchdays.filter(md => md.expand?.season?.id === edition.id);
-        console.log('Filtered matchdays for current edition:', matchdays);
-        
-        // Define phase hierarchy
-        const phaseOrder = [
-          ['gold_final', 'silver_final', 'bronze_final'],
-          ['gold_semi', 'silver_semi', 'bronze_semi'],
-          ['gold_group', 'silver_group', 'bronze_group'],
-          ['group_a', 'group_b']
-        ];
 
-        // Find the current tournament stage
-        let currentStageMatches = [];
+        // Ordenar matchdays por fecha
+        const sortedMatchdays = matchdays.sort((a, b) => new Date(a.date_time) - new Date(b.date_time));
+
+        // Encontrar el primer matchday con partidos sin finalizar
         let currentStageMatchday = null;
-        let phaseFound = false;
+        let currentStageMatches = [];
 
-        // Check each stage in order of importance
-        for (const phases of phaseOrder) {
-          if (phaseFound) break;
-
-          const stageMatchdays = matchdays.filter(md => phases.includes(md.phase));
-          console.log('Found matchdays for phases', phases, ':', stageMatchdays);
+        for (const matchday of sortedMatchdays) {
+          const matches = await pb.collection('matches').getFullList({
+            filter: `matchday="${matchday.id}"`,
+            expand: 'home_team,away_team'
+          });
           
-          if (stageMatchdays.length > 0) {
-            // Get the latest matchday for this stage
-            const latestMatchday = stageMatchdays.reduce((prev, current) => 
-              (prev.number > current.number) ? prev : current
-            );
-            console.log('Latest matchday for stage:', latestMatchday);
-
-            // Get all matches for the current stage's phases
-            const stageMatches = [];
-            const relevantMatchdays = stageMatchdays.filter(md => md.number === latestMatchday.number);
-            console.log('Relevant matchdays:', relevantMatchdays);
-
-            for (const matchday of relevantMatchdays) {
-              try {
-                const matches = await pb.collection('matches').getFullList({
-                  filter: `matchday="${matchday.id}"`,
-                  expand: 'home_team,away_team',
-                  sort: '+created'
+          const hasUnfinishedMatches = matches.some(match => !match.is_finished);
+          
+          if (hasUnfinishedMatches) {
+            currentStageMatchday = matchday;
+            
+            // Si estamos en fase de grupos, obtener todos los partidos de la misma jornada
+            if (matchday.phase.includes('group_')) {
+              const sameRoundMatchdays = matchdays.filter(md => 
+                md.number === matchday.number && 
+                (md.phase === 'group_a' || md.phase === 'group_b')
+              );
+              
+              let allGroupMatches = [];
+              for (const groupMatchday of sameRoundMatchdays) {
+                const groupMatches = await pb.collection('matches').getFullList({
+                  filter: `matchday="${groupMatchday.id}"`,
+                  expand: 'home_team,away_team'
                 });
-                console.log('Fetched matches for matchday', matchday.id, ':', matches);
                 
-                if (matches && matches.length > 0) {
-                  const expandedMatches = matches.map(match => ({
-                    ...match,
-                    phase: matchday.phase,
-                    home_team: match.expand?.home_team?.name || '',
-                    away_team: match.expand?.away_team?.name || '',
-                    home_team_id: match.expand?.home_team?.id || match.home_team,
-                    away_team_id: match.expand?.away_team?.id || match.away_team,
-                    expand: {
-                      home_team: match.expand?.home_team,
-                      away_team: match.expand?.away_team
-                    }
-                  }));
-                  stageMatches.push(...expandedMatches);
-                }
-              } catch (err) {
-                console.error('Error fetching matches for matchday', matchday.id, ':', err);
+                const processedMatches = groupMatches.map(match => ({
+                  ...match,
+                  phase: groupMatchday.phase,
+                  home_team: match.expand?.home_team?.name || '',
+                  away_team: match.expand?.away_team?.name || '',
+                  home_team_id: match.expand?.home_team?.id || match.home_team,
+                  away_team_id: match.expand?.away_team?.id || match.away_team,
+                  expand: {
+                    home_team: match.expand?.home_team,
+                    away_team: match.expand?.away_team
+                  }
+                }));
+                
+                allGroupMatches = [...allGroupMatches, ...processedMatches];
               }
+              
+              currentStageMatches = allGroupMatches;
+            } else {
+              // Para otras fases, usar solo los partidos del matchday actual
+              currentStageMatches = matches.map(match => ({
+                ...match,
+                phase: matchday.phase,
+                home_team: match.expand?.home_team?.name || '',
+                away_team: match.expand?.away_team?.name || '',
+                home_team_id: match.expand?.home_team?.id || match.home_team,
+                away_team_id: match.expand?.away_team?.id || match.away_team,
+                expand: {
+                  home_team: match.expand?.home_team,
+                  away_team: match.expand?.away_team
+                }
+              }));
             }
-
-            console.log('Stage matches after processing:', stageMatches);
-
-            if (stageMatches.length > 0) {
-              currentStageMatches = stageMatches;
-              currentStageMatchday = {
-                ...latestMatchday,
-                number: phases.some(p => p.includes('final')) ? 'Final' :
-                        phases.some(p => p.includes('semi')) ? 'Semifinal' :
-                        latestMatchday.number,
-                phase: latestMatchday.phase
-              };
-              phaseFound = true;
-              break;
-            }
+            break;
           }
         }
-
-        console.log('Final currentStageMatchday:', currentStageMatchday);
-        console.log('Final currentStageMatches:', currentStageMatches);
 
         setNextMatchday(currentStageMatchday);
         setNextMatches(currentStageMatches);
@@ -236,34 +235,27 @@ const Home = () => {
       );
     }
 
-    // Group matches by phase
-    const goldMatches = nextMatches.filter(match => match.phase?.includes('gold'));
-    const silverMatches = nextMatches.filter(match => match.phase?.includes('silver'));
-    const bronzeMatches = nextMatches.filter(match => match.phase?.includes('bronze'));
-    const groupAMatches = nextMatches.filter(match => match.phase === 'group_a');
-    const groupBMatches = nextMatches.filter(match => match.phase === 'group_b');
-
     const renderMatchGroup = (matches, title, bgClass = 'bg-gray-50') => {
       if (!matches || matches.length === 0) return null;
       
+      // Tomar solo los primeros 2 partidos
+      const displayMatches = matches.slice(0, 2);
+      
       return (
-        <div className="mb-4">
-          <h4 className="text-gray-600 font-semibold mb-3 flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gray-200"></div>
-            {title}
-          </h4>
-          <div className="space-y-3">
-            {matches.map((match) => (
+        <div className="mb-3">
+          <h4 className="text-gray-600 font-semibold mb-2">{title}</h4>
+          <div className="space-y-2">
+            {displayMatches.map((match) => (
               <div key={match.id} className={`flex items-center justify-between p-2 ${bgClass} rounded`}>
                 <TeamDisplay team={match.expand?.home_team} />
                 <div className="flex-shrink-0 w-16 text-center">
-                  {match.is_finished ? (
-                    <div className="font-bold text-accent">
-                      {match.home_team_score} - {match.away_team_score}
-                    </div>
-                  ) : (
-                    <span className="text-sm font-bold text-gray-400">VS</span>
-                  )}
+                  <div className="text-xs text-gray-500 mb-1">
+                    {new Date(match.date_time).toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </div>
+                  <span className="text-sm font-bold text-gray-400">VS</span>
                 </div>
                 <TeamDisplay team={match.expand?.away_team} />
               </div>
@@ -273,13 +265,22 @@ const Home = () => {
       );
     };
 
+    // Mostrar los partidos según la fase actual
+    if (nextMatchday.phase.includes('group_')) {
+      const groupAMatches = nextMatches.filter(m => m.phase === 'group_a');
+      const groupBMatches = nextMatches.filter(m => m.phase === 'group_b');
+      return (
+        <div className="flex-1 space-y-4 overflow-y-auto">
+          {groupAMatches.length > 0 && renderMatchGroup(groupAMatches, 'Grupo A', 'bg-blue-50')}
+          {groupBMatches.length > 0 && renderMatchGroup(groupBMatches, 'Grupo B', 'bg-green-50')}
+        </div>
+      );
+    }
+
+    // Para otras fases, mostrar todos los partidos juntos
     return (
-      <div className="flex-1 space-y-6 overflow-y-auto">
-        {goldMatches.length > 0 && renderMatchGroup(goldMatches, 'Copa Oro', 'bg-yellow-50')}
-        {silverMatches.length > 0 && renderMatchGroup(silverMatches, 'Copa Plata', 'bg-gray-50')}
-        {bronzeMatches.length > 0 && renderMatchGroup(bronzeMatches, 'Copa Bronce', 'bg-orange-50')}
-        {groupAMatches.length > 0 && renderMatchGroup(groupAMatches, 'Grupo A', 'bg-blue-50')}
-        {groupBMatches.length > 0 && renderMatchGroup(groupBMatches, 'Grupo B', 'bg-green-50')}
+      <div className="flex-1 space-y-4 overflow-y-auto">
+        {renderMatchGroup(nextMatches, PHASE_LABELS[nextMatchday.phase], 'bg-gray-50')}
       </div>
     );
   };
@@ -347,7 +348,7 @@ const Home = () => {
                     <h3 className="text-lg font-semibold">Jornada {nextMatchday.number}</h3>
                     <div className="flex items-center text-sm">
                       <Calendar className="w-4 h-4 mr-2" />
-                      {new Date(nextMatchday.date).toLocaleDateString()}
+                      {new Date(nextMatchday.date_time).toLocaleDateString()}
                     </div>
                   </div>
                 </div>

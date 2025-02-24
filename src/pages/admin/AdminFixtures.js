@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Trophy, Loader2, Plus, Save } from 'lucide-react';
+import { Calendar, Trophy, Loader2, Plus, Save, Edit } from 'lucide-react';
 import AdminMatchEvents from './AdminMatchEvents';
 import AdminMatchResultModal from './AdminMatchResultModal';
 import { fetchMatchdays, createMatchday, deleteMatchday } from '../../hooks/admin/matchdayHandlers';
@@ -9,6 +9,7 @@ import { updateTeamStatistics } from '../../utils/teamsUtils';
 import { updatePlayerStatistics } from '../../utils/playersUtils';
 import { toast } from 'react-toastify';
 import { useTeams } from '../../hooks/teams/useTeams';
+import AdminMatchdayModal from './AdminMatchdayModal';
 
 const phaseOptions = [
   { label: "Group A", value: "group_a" },
@@ -47,6 +48,7 @@ const AdminFixtures = () => {
   // Add this state at the top with other states
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [savedMatchdays, setSavedMatchdays] = useState({}); // Track saved state for each matchday
+  const [editingMatchday, setEditingMatchday] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -389,6 +391,47 @@ const AdminFixtures = () => {
     }
   };
 
+  const handleMatchdayUpdate = async (matchdayId, updatedData) => {
+    try {
+      // Log the update attempt
+      console.log('Attempting to update matchday:', { matchdayId, updatedData });
+      
+      // Update the matchday in the database
+      const updated = await pb.collection('matchdays').update(matchdayId, updatedData);
+      console.log('Update response:', updated);
+      
+      // Update local state
+      const updatedMatchdays = matchdays.map(matchday => {
+        if (matchday.id === matchdayId) {
+          return {
+            ...matchday,
+            ...updatedData
+          };
+        }
+        return matchday;
+      });
+      
+      setMatchdays(updatedMatchdays);
+      setEditingMatchday(null);
+      toast.success('Matchday updated successfully');
+    } catch (error) {
+      // More detailed error logging
+      console.error('Error updating matchday:', {
+        error,
+        message: error.message,
+        data: error.data,
+        status: error.status
+      });
+      
+      // More informative error message to the user
+      toast.error(
+        error.data?.message || 
+        error.message || 
+        'Failed to update matchday. Please try again.'
+      );
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -445,11 +488,33 @@ const AdminFixtures = () => {
           filteredMatchdays.map((matchday, mdIndex) => (
             <div key={matchday.id} className="mb-8 bg-white/95 backdrop-blur rounded-lg shadow-xl overflow-hidden">
               <div className="bg-gray-800 text-white p-4 rounded-t-lg flex justify-between items-center">
-                <div className="text-2xl font-bold flex items-center space-x-2">
-                  <Calendar className="w-6 h-6" />
-                  <span>
-                    {phaseOptions.find(o => o.value === matchday.phase)?.label} - Jornada {matchday.number}
-                  </span>
+                <div className="flex-1 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-6 h-6" />
+                    <span className="text-2xl font-bold">
+                      {phaseOptions.find(o => o.value === matchday.phase)?.label} - Jornada {matchday.number}
+                    </span>
+                    {matchday.date_time ? (
+                      <button
+                        onClick={() => setEditingMatchday(matchday)}
+                        className="ml-4 text-gray-300 hover:text-white hover:underline flex items-center space-x-1"
+                      >
+                        <span>
+                          {new Date(matchday.date_time).toISOString().slice(0, 10)}
+                        </span>
+                        <Edit className="w-3 h-3 inline-block ml-1" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setEditingMatchday(matchday)}
+                        className="ml-4 text-gray-400 hover:text-white hover:underline flex items-center space-x-1"
+                      >
+                        <span>Set date</span>
+                        <Edit className="w-3 h-3 inline-block ml-1" />
+                      </button>
+                    )}
+
+                  </div>
                 </div>
                 <div className="flex space-x-2">
                   <button
@@ -600,6 +665,14 @@ const AdminFixtures = () => {
               closeEditResultModal();
             }}
             onCancel={closeEditResultModal}
+          />
+        )}
+
+        {editingMatchday && (
+          <AdminMatchdayModal
+            matchday={editingMatchday}
+            onSave={(updatedData) => handleMatchdayUpdate(editingMatchday.id, updatedData)}
+            onCancel={() => setEditingMatchday(null)}
           />
         )}
       </div>

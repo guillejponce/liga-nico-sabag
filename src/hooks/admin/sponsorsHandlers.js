@@ -21,8 +21,8 @@ export const createSponsor = async (sponsorData) => {
     const formData = new FormData();
     formData.append('name', sponsorData.name);
     
-    if (sponsorData.logo) {
-      formData.append('logo', sponsorData.logo);
+    if (sponsorData.image) {
+      formData.append('image', sponsorData.image);
     }
 
     const createdSponsor = await pb.collection('sponsors').create(formData);
@@ -42,8 +42,8 @@ export const updateSponsor = async (id, sponsorData) => {
     const formData = new FormData();
     formData.append('name', sponsorData.name);
     
-    if (sponsorData.logo) {
-      formData.append('logo', sponsorData.logo);
+    if (sponsorData.image) {
+      formData.append('image', sponsorData.image);
     }
 
     const updatedSponsor = await pb.collection('sponsors').update(id, formData);

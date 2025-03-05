@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
 import { pb } from '../config';
 import { fetchMatchdays } from '../hooks/admin/matchdayHandlers';
-import { fetchMatchesByMatchday } from '../hooks/admin/matchHandlers';
 import { fetchLatestTeamOfTheWeek } from '../hooks/admin/teamOfTheWeekHandlers';
 import SoccerPitch from '../components/teams/SoccerPitch';
 import { fetchSponsors } from '../hooks/admin/sponsorsHandlers';
@@ -152,7 +151,7 @@ const Home = () => {
           id: 'default',
           image: backgroundImage,
           title: 'Bienvenidos a la Liga Nico Sabag',
-          description: 'Donde la pasión por el fútbol se une con la competencia amistosa',
+          description: '📍Canchas Colegio Newland\n 🗓️Lunes (19:45 y 20:45)',
           is_active: true
         };
 
@@ -165,7 +164,7 @@ const Home = () => {
           id: 'default',
           image: backgroundImage,
           title: 'Bienvenidos a la Liga Nico Sabag',
-          description: 'Donde la pasión por el fútbol se une con la competencia amistosa',
+          description: '📍Canchas Colegio Newland\n 🗓️Lunes (19:45 y 20:45)',
           is_active: true
         }]);
       }
@@ -392,14 +391,14 @@ const Home = () => {
               return (
                 <div key={sponsor.id} className="text-center">
                   <div className="w-32 h-32 mx-auto mb-3 bg-white rounded-lg shadow-md overflow-hidden">
-                    {sponsor.logo ? (
+                    {sponsor.image ? (
                       <img
-                        src={pb.getFileUrl(sponsor, sponsor.logo)}
+                        src={pb.getFileUrl(sponsor, sponsor.image)}
                         alt={sponsor.name}
                         className="w-full h-full object-contain p-2"
                         onError={(e) => {
                           console.error('Image load error:', e);
-                          e.target.src = '';
+                          e.target.src = 'https://via.placeholder.com/128?text=' + encodeURIComponent(sponsor.name);
                         }}
                       />
                     ) : (

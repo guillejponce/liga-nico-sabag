@@ -4,8 +4,22 @@ import { pb } from '../config';
 import { fetchMatchdays } from '../hooks/admin/matchdayHandlers';
 import { fetchMatchesByMatchday } from '../hooks/admin/matchHandlers';
 import { useTeams } from '../hooks/teams/useTeams';
-import { getFreeTeams } from '../utils/matchUtils';
 import Bracket from '../components/results/bracket';
+import { fetchCurrentEdition } from '../hooks/admin/editionHandlers';
+
+const PHASE_LABELS = {
+  group_a: "Grupo A",
+  group_b: "Grupo B",
+  gold_group: "Grupo Oro",
+  silver_group: "Grupo Plata",
+  bronze_group: "Grupo Bronce",
+  gold_semi: "Semifinal Oro",
+  silver_semi: "Semifinal Plata",
+  bronze_semi: "Semifinal Bronce",
+  gold_final: "Final Oro",
+  silver_final: "Final Plata",
+  bronze_final: "Final Bronce",
+};
 
 const TeamDisplay = ({ team, isHome }) => {
   return (
@@ -171,23 +185,72 @@ const MatchEventsModal = ({ match, onClose }) => {
 
 const Schedule = () => {
   const [matchdays, setMatchdays] = useState([]);
-  const [activeMatchday, setActiveMatchday] = useState(null);
+  const [activePhase, setActivePhase] = useState(null);
+  const [selectedMatchday, setSelectedMatchday] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [currentEdition, setCurrentEdition] = useState(null);
   const { teams } = useTeams();
+
+  // Group matchdays by phase
+  const matchdaysByPhase = matchdays.reduce((acc, matchday) => {
+    if (!acc[matchday.phase]) {
+      acc[matchday.phase] = [];
+    }
+    acc[matchday.phase].push(matchday);
+    // Sort each phase's matchdays from newest to oldest
+    acc[matchday.phase].sort((a, b) => b.number - a.number);
+    return acc;
+  }, {});
+
+  // Get unique matchday numbers for the active phase
+  const availableMatchdays = activePhase 
+    ? [...new Set(matchdaysByPhase[activePhase]?.map(md => md.number))]
+      .sort((a, b) => b - a) // Sort from newest to oldest
+    : [];
+
+  // Filter matchdays by both phase and selected matchday number
+  const filteredMatchdays = activePhase 
+    ? matchdaysByPhase[activePhase]?.filter(matchday => 
+        selectedMatchday === 'all' || matchday.number === parseInt(selectedMatchday)
+      )
+    : [];
+
+  // Reset selected matchday when phase changes
+  useEffect(() => {
+    setSelectedMatchday('all');
+  }, [activePhase]);
 
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
     
-    const loadMatchdays = async () => {
+    const loadData = async () => {
       try {
+        // First fetch current edition
+        const edition = await fetchCurrentEdition();
+        if (!mounted) return;
+        
+        if (!edition) {
+          setError('No hay temporada activa en este momento.');
+          setLoading(false);
+          return;
+        }
+        
+        setCurrentEdition(edition);
+
+        // Then fetch matchdays for current edition
         const fetchedMatchdays = await fetchMatchdays(controller.signal);
         
         if (!mounted) return;
 
-        const sortedMatchdays = fetchedMatchdays.sort((a, b) => a.number - b.number);
+        // Filter matchdays by current edition
+        const currentEditionMatchdays = fetchedMatchdays.filter(
+          matchday => matchday.expand?.season?.id === edition.id
+        );
+
+        const sortedMatchdays = currentEditionMatchdays.sort((a, b) => b.number - a.number);
 
         const matchdaysWithMatches = await Promise.all(
           sortedMatchdays.map(async (matchday) => {
@@ -213,22 +276,26 @@ const Schedule = () => {
         );
         
         if (mounted) {
-          setMatchdays(matchdaysWithMatches.filter(Boolean));
-          setActiveMatchday(matchdaysWithMatches[0]?.id || null);
+          const validMatchdays = matchdaysWithMatches.filter(Boolean);
+          setMatchdays(validMatchdays);
+          // Set active phase to the first available phase
+          if (validMatchdays.length > 0) {
+            setActivePhase(validMatchdays[0].phase);
+          }
           setLoading(false);
         }
       } catch (err) {
         if (!err.message?.includes('autocancelled')) {
-          console.error('Error loading matchdays:', err);
+          console.error('Error loading schedule:', err);
           if (mounted) {
-            setError('Failed to load schedule. Please try again.');
+            setError('Error al cargar el calendario. Por favor, intente nuevamente.');
             setLoading(false);
           }
         }
       }
     };
 
-    loadMatchdays();
+    loadData();
 
     return () => {
       mounted = false;
@@ -246,151 +313,147 @@ const Schedule = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-body flex items-center justify-center text-red-500">
-        {error}
+      <div className="min-h-screen bg-body flex flex-col items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            {error === 'No hay temporada activa en este momento.' ? 'Sin Temporada Activa' : 'Error'}
+          </h2>
+          <p className="text-gray-600">
+            {error === 'No hay temporada activa en este momento.' 
+              ? 'No hay una temporada activa en este momento. Las fechas se mostrarán cuando se active una temporada.'
+              : error}
+          </p>
+        </div>
       </div>
     );
   }
 
-  const activeMatchdayData = matchdays.find((matchday) => matchday.id === activeMatchday);
-  const hasPlayoffs = matchdays.some(m => 
-    m.phase === 'gold_semi' || 
-    m.phase === 'gold_final' || 
-    m.phase === 'silver_semi' || 
-    m.phase === 'silver_final'
-  );
+  if (matchdays.length === 0) {
+    return (
+      <div className="min-h-screen bg-body flex flex-col items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Sin Fechas Programadas
+          </h2>
+          <p className="text-gray-600">
+            {currentEdition 
+              ? `No hay fechas programadas para la temporada ${currentEdition.number} (${currentEdition.year} - ${currentEdition.semester === "1" ? "1er" : "2do"} Semestre).`
+              : 'No hay fechas programadas para la temporada actual.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-body min-h-screen">
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6 text-text">Calendario de la Liga</h1>
         
-        {/* Matchday tabs */}
-        <div className="flex flex-wrap mb-6">
-          {matchdays.some(m => m.phase === 'regular') && (
-            matchdays
-              .filter(m => m.phase === 'regular')
-              .map((matchday) => (
-                <button
-                  key={matchday.id}
-                  onClick={() => setActiveMatchday(matchday.id)}
-                  className={`px-4 py-2 mr-2 mb-2 rounded-md transition-colors ${
-                    activeMatchday === matchday.id
-                      ? 'bg-accent text-white shadow-md'
-                      : 'bg-body-secondary text-text hover:bg-accent-light hover:shadow-sm'
-                  }`}
-                >
-                  Jornada {matchday.number}
-                </button>
-              ))
-          )}
-          
-          {hasPlayoffs && (
-            <button
-              onClick={() => setActiveMatchday(matchdays.find(m => 
-                m.phase === 'gold_semi' || 
-                m.phase === 'gold_final' || 
-                m.phase === 'silver_semi' || 
-                m.phase === 'silver_final'
-              )?.id)}
-              className={`px-4 py-2 mr-2 mb-2 rounded-md transition-colors ${
-                activeMatchdayData?.phase !== 'regular'
-                  ? 'bg-accent text-white shadow-md'
-                  : 'bg-body-secondary text-text hover:bg-accent-light hover:shadow-sm'
-              }`}
-            >
-              Playoffs
-            </button>
+        {/* Filters section */}
+        <div className="mb-6 space-y-4">
+          {/* Phase tabs */}
+          <div className="flex flex-wrap">
+            {Object.keys(matchdaysByPhase).map((phase) => (
+              <button
+                key={phase}
+                onClick={() => setActivePhase(phase)}
+                className={`px-4 py-2 mr-2 mb-2 rounded-md transition-colors ${
+                  activePhase === phase
+                    ? 'bg-accent text-white shadow-md'
+                    : 'bg-body-secondary text-text hover:bg-accent-light hover:shadow-sm'
+                }`}
+              >
+                {PHASE_LABELS[phase] || phase}
+              </button>
+            ))}
+          </div>
+
+          {/* Matchday filter */}
+          {activePhase && availableMatchdays.length > 0 && (
+            <div className="flex items-center space-x-2">
+              <label className="text-text font-medium">Filtrar por Jornada:</label>
+              <select
+                value={selectedMatchday}
+                onChange={(e) => setSelectedMatchday(e.target.value)}
+                className="px-4 py-2 rounded-md border border-gray-300 bg-white text-text focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                <option value="all">Todas las Jornadas</option>
+                {availableMatchdays.map((number) => (
+                  <option key={number} value={number}>
+                    Jornada {number}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
 
-        {/* Show playoffs bracket only when viewing a playoff phase */}
-        {hasPlayoffs && (
-          activeMatchdayData?.phase === 'gold_semi' || 
-          activeMatchdayData?.phase === 'gold_final' || 
-          activeMatchdayData?.phase === 'silver_semi' || 
-          activeMatchdayData?.phase === 'silver_final'
-        ) && (
-          <div className="mt-8 mb-12">
-            <h2 className="text-2xl font-bold mb-6 text-text">Playoffs</h2>
-            <Bracket 
-              matches={matchdays
-                .filter(md => 
-                  md.phase === 'gold_semi' || 
-                  md.phase === 'gold_final' || 
-                  md.phase === 'silver_semi' || 
-                  md.phase === 'silver_final'
-                )
-                .flatMap(md => md.matches)
-                .map(match => ({
-                  ...match,
-                  phase: match.expand?.matchday?.phase || match.phase
-                }))
-              } 
-            />
-          </div>
-        )}
-
-        {/* Show regular matches grid only for regular phase */}
+        {/* Show matches for filtered matchdays */}
         <div>
-          {activeMatchdayData?.matches && 
-           activeMatchdayData.matches.length > 0 && 
-           activeMatchdayData.phase === 'regular' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {activeMatchdayData.matches.map((match) => (
-                <div key={match.id} className="bg-body-secondary rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
-                  <div className="flex justify-between items-center mb-6 bg-gray-50 p-3 rounded-lg">
-                    <div className="flex items-center text-text-dark">
-                      <Calendar size={18} className="mr-2 text-blue-500" />
-                      <span className="font-medium">{new Date(match.date_time).toLocaleDateString()}</span>
+          {filteredMatchdays.map((matchday) => (
+            <div key={matchday.id} className="mb-8">
+              <h2 className="text-2xl font-bold mb-4 text-text">
+                {PHASE_LABELS[matchday.phase]} - Jornada {matchday.number}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {matchday.matches.map((match) => (
+                  <div key={match.id} className="bg-body-secondary rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
+                    <div className="flex justify-between items-center mb-6 bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-center text-text-dark">
+                        <Calendar size={18} className="mr-2 text-blue-500" />
+                        <span className="font-medium">{new Date(match.date_time).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center text-text-dark">
+                        <Clock size={18} className="mr-2 text-blue-500" />
+                        <span className="font-medium">
+                          {new Date(match.date_time).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center text-text-dark">
-                      <Clock size={18} className="mr-2 text-blue-500" />
-                      <span className="font-medium">
-                        {new Date(match.date_time).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <TeamDisplay team={match.expand?.home_team} isHome={true} />
                     
-                    <div className="flex flex-col items-center">
-                      {match.is_finished ? (
-                        <div className="bg-gray-50 px-4 py-2 rounded-lg shadow-inner flex flex-col items-center">
-                          <div className="text-2xl font-bold text-accent text-center">
-                            {match.home_team_score} - {match.away_team_score}
+                    <div className="flex justify-between items-center">
+                      <TeamDisplay team={match.expand?.home_team} isHome={true} />
+                      
+                      <div className="flex flex-col items-center">
+                        {match.is_finished ? (
+                          <div className="bg-gray-50 px-4 py-2 rounded-lg shadow-inner flex flex-col items-center">
+                            <div className="text-2xl font-bold text-accent text-center">
+                              {match.home_team_score} - {match.away_team_score}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 text-center">Final</div>
+                            <button
+                              onClick={() => setSelectedMatch(match)}
+                              className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                            >
+                              Ver detalles
+                            </button>
                           </div>
-                          <div className="text-xs text-gray-500 mt-1 text-center">Final</div>
+                        ) : (
+                          <div className="text-xl font-bold text-gray-400 text-center">VS</div>
+                        )}
+                        {match.events && match.events.length > 0 && (
                           <button
                             onClick={() => setSelectedMatch(match)}
-                            className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                            className="mt-3 text-sm text-blue-600 hover:text-blue-800 flex items-center"
                           >
-                            Ver detalles
+                            <Trophy size={16} className="mr-1" /> Ver eventos
                           </button>
-                        </div>
-                      ) : (
-                        <div className="text-xl font-bold text-gray-400 text-center">VS</div>
-                      )}
-                      {match.events && match.events.length > 0 && (
-                        <button
-                          onClick={() => setSelectedMatch(match)}
-                          className="mt-3 text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                        >
-                          <Trophy size={16} className="mr-1" /> Ver eventos
-                        </button>
-                      )}
+                        )}
+                      </div>
+                      
+                      <TeamDisplay team={match.expand?.away_team} isHome={false} />
                     </div>
-                    
-                    <TeamDisplay team={match.expand?.away_team} isHome={false} />
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          )}
+          ))}
         </div>
       </div>
       {selectedMatch && (

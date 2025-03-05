@@ -1,10 +1,51 @@
 import { pb } from '../../config';
+import { fetchCurrentEdition } from './editionHandlers';
 
 export const FORMATIONS = [
   '2-3-1',
   '3-2-1',
   '2-2-2',
 ];
+
+// Fetch latest team of the week for current season
+export const fetchLatestTeamOfTheWeek = async () => {
+  try {
+    // Get current edition
+    const currentEdition = await fetchCurrentEdition();
+    if (!currentEdition) {
+      console.log('No current edition found');
+      return null;
+    }
+
+    // Get all matchdays for current season
+    const matchdays = await pb.collection('matchdays').getFullList({
+      filter: `season = "${currentEdition.id}"`,
+      sort: '-number'
+    });
+
+    if (!matchdays.length) {
+      return null;
+    }
+
+    // Get team of the week for the latest matchday that has one
+    for (const matchday of matchdays) {
+      const resultList = await pb.collection('team_of_the_week').getList(1, 1, {
+        filter: `matchday="${matchday.id}"`,
+        expand: 'player1.team,player2.team,player3.team,player4.team,player5.team,player6.team,player7.team,matchday',
+        fields: 'id,formation,matchday,player1,player2,player3,player4,player5,player6,player7,expand.player1.first_name,expand.player1.last_name,expand.player1.expand.team.id,expand.player1.expand.team.name,expand.player1.expand.team.logo,expand.player2.first_name,expand.player2.last_name,expand.player2.expand.team.id,expand.player2.expand.team.name,expand.player2.expand.team.logo,expand.player3.first_name,expand.player3.last_name,expand.player3.expand.team.id,expand.player3.expand.team.name,expand.player3.expand.team.logo,expand.player4.first_name,expand.player4.last_name,expand.player4.expand.team.id,expand.player4.expand.team.name,expand.player4.expand.team.logo,expand.player5.first_name,expand.player5.last_name,expand.player5.expand.team.id,expand.player5.expand.team.name,expand.player5.expand.team.logo,expand.player6.first_name,expand.player6.last_name,expand.player6.expand.team.id,expand.player6.expand.team.name,expand.player6.expand.team.logo,expand.player7.first_name,expand.player7.last_name,expand.player7.expand.team.id,expand.player7.expand.team.name,expand.player7.expand.team.logo'
+      });
+
+      if (resultList.items.length > 0) {
+        return resultList.items[0];
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.error('Error fetching latest team of the week:', err);
+    throw new Error('Failed to fetch latest team of the week. Please try again.');
+  }
+};
 
 export const fetchTeamOfTheWeek = async (matchdayId) => {
   try {

@@ -1,0 +1,1179 @@
+[
+  {
+    "id": "_pb_users_auth_",
+    "name": "users",
+    "type": "auth",
+    "system": false,
+    "schema": [
+      {
+        "id": "users_name",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "users_avatar",
+        "name": "avatar",
+        "type": "file",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/svg+xml",
+            "image/gif",
+            "image/webp"
+          ],
+          "thumbs": null
+        }
+      },
+      {
+        "id": "fuqpl4ze",
+        "name": "role",
+        "type": "select",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "admin",
+            "common"
+          ]
+        }
+      }
+    ],
+    "listRule": "id = @request.auth.id",
+    "viewRule": "id = @request.auth.id",
+    "createRule": "",
+    "updateRule": "id = @request.auth.id",
+    "deleteRule": "id = @request.auth.id",
+    "options": {
+      "allowEmailAuth": true,
+      "allowOAuth2Auth": true,
+      "allowUsernameAuth": true,
+      "exceptEmailDomains": null,
+      "manageRule": null,
+      "minPasswordLength": 8,
+      "onlyEmailDomains": null,
+      "requireEmail": false
+    }
+  },
+  {
+    "id": "ycsvbowe2hlm2ij",
+    "name": "players",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "timxpzlk",
+        "name": "rut",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "w4purl1o",
+        "name": "team",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "6hkvwfswk61t3b1",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "yy7vezwp",
+        "name": "first_name",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "jwlkp7jq",
+        "name": "last_name",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "7j2j6ffo",
+        "name": "email",
+        "type": "email",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "exceptDomains": null,
+          "onlyDomains": null
+        }
+      },
+      {
+        "id": "nmp2el4n",
+        "name": "scored_goals",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "g0gsgvdl",
+        "name": "yellow_cards",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "fbjvc09k",
+        "name": "red_cards",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "tvqj1tfv",
+        "name": "man_of_the_match",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "6hkvwfswk61t3b1",
+    "name": "teams",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "pik4sgff",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "fa9rpjze",
+        "name": "description",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "w09q988e",
+        "name": "logo",
+        "type": "file",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": [],
+          "thumbs": []
+        }
+      },
+      {
+        "id": "byxwpdip",
+        "name": "captain_id",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "otodvln3",
+        "name": "won_matches",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "bxup0dxr",
+        "name": "drawn_matches",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "s1az4wa9",
+        "name": "lost_matches",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "2nsvnxhz",
+        "name": "scored_goals",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "mwgi3wau",
+        "name": "concieved_goals",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "5d71qfpl",
+        "name": "instagram_url",
+        "type": "url",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "exceptDomains": null,
+          "onlyDomains": null
+        }
+      },
+      {
+        "id": "jo91uoxy",
+        "name": "primary_color",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "67yximdj",
+        "name": "secondary_color",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "qr1snbnfqudi5q3",
+    "name": "matchdays",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "jefct7e6",
+        "name": "date_time",
+        "type": "date",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "min": "",
+          "max": ""
+        }
+      },
+      {
+        "id": "3qh5mke9",
+        "name": "number",
+        "type": "number",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "uzumdkny",
+        "name": "phase",
+        "type": "select",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "regular",
+            "gold_semi",
+            "silver_semi",
+            "gold_final",
+            "silver_final",
+            "bronze_semi",
+            "bronze_final",
+            "group_a",
+            "group_b",
+            "gold_group",
+            "silver_group",
+            "bronze_group"
+          ]
+        }
+      },
+      {
+        "id": "tfefyhwt",
+        "name": "season",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "swrj3ware00f5ye",
+          "cascadeDelete": false
+        }
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "h5rby0wwtgskzqv",
+    "name": "matches",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "funp6zod",
+        "name": "matchday",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "qr1snbnfqudi5q3",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "hej08xjo",
+        "name": "date_time",
+        "type": "date",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": "",
+          "max": ""
+        }
+      },
+      {
+        "id": "mru8oeud",
+        "name": "home_team",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "6hkvwfswk61t3b1",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "jzkvcigr",
+        "name": "away_team",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "6hkvwfswk61t3b1",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "l1xwkvli",
+        "name": "home_team_score",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "swki9pol",
+        "name": "away_team_score",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "tcrcpfra",
+        "name": "is_finished",
+        "type": "bool",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "id": "uxlmsh01",
+        "name": "man_of_the_match",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "uaeguojg",
+        "name": "events",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": null,
+          "collectionId": "9b1stn09qgzi4t2",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "vofdtwl2",
+        "name": "home_penalties",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "0dkgfjxe",
+        "name": "away_penalties",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "9b1stn09qgzi4t2",
+    "name": "events",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "xncskp1m",
+        "name": "type",
+        "type": "select",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "goal",
+            "yellow_card",
+            "red_card"
+          ]
+        }
+      },
+      {
+        "id": "oobs58ty",
+        "name": "player",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "847zfcqx",
+        "name": "match",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "h5rby0wwtgskzqv",
+          "cascadeDelete": true
+        }
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "tifgof5p45xy7yf",
+    "name": "sanctions",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "h1oqjdgv",
+        "name": "player",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "pzqnf9vw",
+        "name": "matchday_start",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "qr1snbnfqudi5q3",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "iveamwej",
+        "name": "length",
+        "type": "number",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "4gaxqcxi",
+        "name": "remaining_matches",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "ucycbepl",
+        "name": "description",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "tsjipwrjfpmhyg2",
+    "name": "team_of_the_week",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "afmkdyd4",
+        "name": "matchday",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "qr1snbnfqudi5q3",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "jasakeha",
+        "name": "formation",
+        "type": "select",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "2-3-1",
+            "3-2-1",
+            "2-2-2"
+          ]
+        }
+      },
+      {
+        "id": "dgd9kmqd",
+        "name": "player1",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "1rzfx9co",
+        "name": "player2",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "8eocxb2x",
+        "name": "player3",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "207f0yct",
+        "name": "player4",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "xlikqvc7",
+        "name": "player5",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "zpdxqduw",
+        "name": "player6",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "gvizeton",
+        "name": "player7",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": true
+        }
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "srttiok5jifwarh",
+    "name": "banners",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "pxvecxyr",
+        "name": "title",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "ot2j1mze",
+        "name": "description",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "z5j45peb",
+        "name": "image",
+        "type": "file",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 10485760,
+          "mimeTypes": [],
+          "thumbs": []
+        }
+      },
+      {
+        "id": "qtay2pna",
+        "name": "is_active",
+        "type": "bool",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {}
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "hfkokywfhitbcau",
+    "name": "sponsors",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "9nhnlts8",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "bsvvrlru",
+        "name": "image",
+        "type": "file",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": [],
+          "thumbs": []
+        }
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "swrj3ware00f5ye",
+    "name": "editions",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "hrwbp7sh",
+        "name": "number",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "umbvlsu2",
+        "name": "year",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null
+        }
+      },
+      {
+        "id": "8zmwcneq",
+        "name": "semester",
+        "type": "select",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": [
+            "1",
+            "2"
+          ]
+        }
+      },
+      {
+        "id": "huk0yprj",
+        "name": "gold_champion",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "6hkvwfswk61t3b1",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "y5e8ozo9",
+        "name": "silver_champion",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "6hkvwfswk61t3b1",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "7oyky2x5",
+        "name": "gold_second",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "6hkvwfswk61t3b1",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "dbqcm4tw",
+        "name": "silver_second",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "6hkvwfswk61t3b1",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "5a4we1sx",
+        "name": "topscorer",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "nbavmgpn",
+        "name": "player_of_the_tournament",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "vg1qzptq",
+        "name": "top_goalkeeper",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "ycsvbowe2hlm2ij",
+          "cascadeDelete": false
+        }
+      },
+      {
+        "id": "hycnvhyp",
+        "name": "description",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "zm46idyy",
+        "name": "is_current",
+        "type": "bool",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {}
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "vx4f9fm6ogt89dw",
+    "name": "gallery",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "id": "3kl8df4f",
+        "name": "team1",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "6hkvwfswk61t3b1",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "sjf3hsrl",
+        "name": "team2",
+        "type": "relation",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "collectionId": "6hkvwfswk61t3b1",
+          "cascadeDelete": true
+        }
+      },
+      {
+        "id": "tebcaflh",
+        "name": "image",
+        "type": "file",
+        "system": false,
+        "required": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": [],
+          "thumbs": []
+        }
+      }
+    ],
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  }
+]

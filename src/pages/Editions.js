@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Award, Star } from 'lucide-react';
+import { Trophy, Medal, Award, Star, Table2 } from 'lucide-react';
 import { pb } from '../config';
 import { Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Editions = () => {
   const [editions, setEditions] = useState([]);
@@ -55,9 +56,18 @@ const Editions = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-12 text-gray-900">
-          Historia del Torneo
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900">
+            Historia del Torneo
+          </h1>
+          <Link
+            to="/historical-table"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors duration-200"
+          >
+            <Table2 className="w-5 h-5" />
+            <span>Ver Tabla Histórica</span>
+          </Link>
+        </div>
 
         <div className="space-y-12">
           {editions.map((edition) => (

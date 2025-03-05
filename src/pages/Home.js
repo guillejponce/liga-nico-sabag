@@ -3,13 +3,27 @@ import { Link } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
 import { pb } from '../config';
 import { fetchMatchdays } from '../hooks/admin/matchdayHandlers';
-import { fetchMatchesByMatchday } from '../hooks/admin/matchHandlers';
-import { fetchAllTeamsOfTheWeek } from '../hooks/admin/teamOfTheWeekHandlers';
+import { fetchLatestTeamOfTheWeek } from '../hooks/admin/teamOfTheWeekHandlers';
 import SoccerPitch from '../components/teams/SoccerPitch';
 import { fetchSponsors } from '../hooks/admin/sponsorsHandlers';
 import backgroundImage from '../assets/images/homepage/landing.jpg';
 import { fetchBanners } from '../hooks/admin/bannerHandlers';
 import BannerSlider from '../components/layout/bannerslider';
+import { fetchCurrentEdition } from '../hooks/admin/editionHandlers';
+
+const PHASE_LABELS = {
+  group_a: "Grupo A",
+  group_b: "Grupo B",
+  gold_group: "Grupo Oro",
+  silver_group: "Grupo Plata",
+  bronze_group: "Grupo Bronce",
+  gold_semi: "Semifinal Oro",
+  silver_semi: "Semifinal Plata",
+  bronze_semi: "Semifinal Bronce",
+  gold_final: "Final Oro",
+  silver_final: "Final Plata",
+  bronze_final: "Final Bronce",
+};
 
 const Home = () => {
   const [latestTeamOfWeek, setLatestTeamOfWeek] = useState(null);
@@ -24,74 +38,92 @@ const Home = () => {
     const loadData = async () => {
       try {
         // Load team of the week
-        const teams = await fetchAllTeamsOfTheWeek();
-        if (teams.length > 0) {
-          const latest = teams.reduce((prev, current) => {
-            return (prev.expand.matchday.number > current.expand.matchday.number) ? prev : current;
+        const latest = await fetchLatestTeamOfTheWeek();
+        setLatestTeamOfWeek(latest);
+
+        // First get current edition
+        const edition = await fetchCurrentEdition();
+        if (!edition) {
+          console.log('No current edition found');
+          setLoading(false);
+          return;
+        }
+
+        // Load matchdays and determine the current phase based on the date
+        const allMatchdays = await fetchMatchdays();
+        // Filter matchdays for current edition
+        const matchdays = allMatchdays.filter(md => md.expand?.season?.id === edition.id);
+
+        // Ordenar matchdays por fecha
+        const sortedMatchdays = matchdays.sort((a, b) => new Date(a.date_time) - new Date(b.date_time));
+
+        // Encontrar el primer matchday con partidos sin finalizar
+        let currentStageMatchday = null;
+        let currentStageMatches = [];
+
+        for (const matchday of sortedMatchdays) {
+          const matches = await pb.collection('matches').getFullList({
+            filter: `matchday="${matchday.id}"`,
+            expand: 'home_team,away_team'
           });
-          setLatestTeamOfWeek(latest);
+          
+          const hasUnfinishedMatches = matches.some(match => !match.is_finished);
+          
+          if (hasUnfinishedMatches) {
+            currentStageMatchday = matchday;
+            
+            // Si estamos en fase de grupos, obtener todos los partidos de la misma jornada
+            if (matchday.phase.includes('group_')) {
+              const sameRoundMatchdays = matchdays.filter(md => 
+                md.number === matchday.number && 
+                (md.phase === 'group_a' || md.phase === 'group_b')
+              );
+              
+              let allGroupMatches = [];
+              for (const groupMatchday of sameRoundMatchdays) {
+                const groupMatches = await pb.collection('matches').getFullList({
+                  filter: `matchday="${groupMatchday.id}"`,
+                  expand: 'home_team,away_team'
+                });
+                
+                const processedMatches = groupMatches.map(match => ({
+                  ...match,
+                  phase: groupMatchday.phase,
+                  home_team: match.expand?.home_team?.name || '',
+                  away_team: match.expand?.away_team?.name || '',
+                  home_team_id: match.expand?.home_team?.id || match.home_team,
+                  away_team_id: match.expand?.away_team?.id || match.away_team,
+                  expand: {
+                    home_team: match.expand?.home_team,
+                    away_team: match.expand?.away_team
+                  }
+                }));
+                
+                allGroupMatches = [...allGroupMatches, ...processedMatches];
+              }
+              
+              currentStageMatches = allGroupMatches;
+            } else {
+              // Para otras fases, usar solo los partidos del matchday actual
+              currentStageMatches = matches.map(match => ({
+                ...match,
+                phase: matchday.phase,
+                home_team: match.expand?.home_team?.name || '',
+                away_team: match.expand?.away_team?.name || '',
+                home_team_id: match.expand?.home_team?.id || match.home_team,
+                away_team_id: match.expand?.away_team?.id || match.away_team,
+                expand: {
+                  home_team: match.expand?.home_team,
+                  away_team: match.expand?.away_team
+                }
+              }));
+            }
+            break;
+          }
         }
 
-        // Load matchdays and determine the latest phase
-        const matchdays = await fetchMatchdays();
-        
-        // Buscar finales
-        const goldFinal = matchdays.find(md => md.phase === 'gold_final');
-        const silverFinal = matchdays.find(md => md.phase === 'silver_final');
-        
-        if (goldFinal || silverFinal) {
-          // Si hay finales, mostrar ambas finales
-          const finalMatches = [];
-          if (goldFinal) {
-            const goldMatches = await fetchMatchesByMatchday(goldFinal.id);
-            finalMatches.push(...goldMatches.map(match => ({
-              ...match,
-              phase: goldFinal.phase
-            })));
-          }
-          if (silverFinal) {
-            const silverMatches = await fetchMatchesByMatchday(silverFinal.id);
-            finalMatches.push(...silverMatches.map(match => ({
-              ...match,
-              phase: silverFinal.phase
-            })));
-          }
-          setNextMatchday({ ...goldFinal, number: 'Final' });
-          setNextMatches(finalMatches);
-          return;
-        }
-
-        // Buscar semifinales
-        const goldSemis = matchdays.find(md => md.phase === 'gold_semi');
-        const silverSemis = matchdays.find(md => md.phase === 'silver_semi');
-
-        if (goldSemis || silverSemis) {
-          // Si hay semis, mostrar todas las semis
-          const semiMatches = [];
-          if (goldSemis) {
-            const goldMatches = await fetchMatchesByMatchday(goldSemis.id);
-            semiMatches.push(...goldMatches);
-          }
-          if (silverSemis) {
-            const silverMatches = await fetchMatchesByMatchday(silverSemis.id);
-            semiMatches.push(...silverMatches);
-          }
-          setNextMatchday({ ...goldSemis, number: 'Semifinal' });
-          setNextMatches(semiMatches);
-          return;
-        }
-
-        // Si no hay playoffs, mostrar la última fecha regular
-        const regularMatchdays = matchdays.filter(md => md.phase === 'regular');
-        const latestRegular = regularMatchdays.reduce((prev, current) => 
-          prev.number > current.number ? prev : current
-        );
-
-        if (latestRegular) {
-          const matches = await fetchMatchesByMatchday(latestRegular.id);
-          setNextMatchday(latestRegular);
-          setNextMatches(matches);
-        }
+        setNextMatchday(currentStageMatchday);
+        setNextMatches(currentStageMatches);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -119,7 +151,7 @@ const Home = () => {
           id: 'default',
           image: backgroundImage,
           title: 'Bienvenidos a la Liga Nico Sabag',
-          description: 'Donde la pasión por el fútbol se une con la competencia amistosa',
+          description: '📍Canchas Colegio Newland\n 🗓️Lunes (19:45 y 20:45)',
           is_active: true
         };
 
@@ -132,7 +164,7 @@ const Home = () => {
           id: 'default',
           image: backgroundImage,
           title: 'Bienvenidos a la Liga Nico Sabag',
-          description: 'Donde la pasión por el fútbol se une con la competencia amistosa',
+          description: '📍Canchas Colegio Newland\n 🗓️Lunes (19:45 y 20:45)',
           is_active: true
         }]);
       }
@@ -194,73 +226,64 @@ const Home = () => {
   );
 
   const nextMatchesDisplay = () => {
-    if (nextMatchday?.phase === 'regular') {
+    if (!nextMatchday || !nextMatches.length) {
       return (
-        <div className="flex-1 space-y-3 overflow-y-auto">
-          {nextMatches.map((match) => (
-            <div key={match.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-              <TeamDisplay team={match.expand?.home_team} />
-              <div className="flex-shrink-0 w-16 text-center">
-                <span className="text-sm font-bold text-gray-400">VS</span>
-              </div>
-              <TeamDisplay team={match.expand?.away_team} />
-            </div>
-          ))}
+        <div className="text-center py-4 text-gray-500">
+          No hay próximos partidos programados
         </div>
       );
     }
 
-    // Separar partidos por copa
-    const goldMatches = nextMatches.filter(match => {
-      const phase = match.expand?.matchday?.phase || match.phase;
-      return phase?.includes('gold');
-    });
-    const silverMatches = nextMatches.filter(match => {
-      const phase = match.expand?.matchday?.phase || match.phase;
-      return phase?.includes('silver');
-    });
+    const renderMatchGroup = (matches, title, bgClass = 'bg-gray-50') => {
+      if (!matches || matches.length === 0) return null;
+      
+      // Tomar solo los primeros 2 partidos
+      const displayMatches = matches.slice(0, 2);
+      
+      return (
+        <div className="mb-3">
+          <h4 className="text-gray-600 font-semibold mb-2">{title}</h4>
+          <div className="space-y-2">
+            {displayMatches.map((match) => (
+              <div key={match.id} className={`flex items-center justify-between p-2 ${bgClass} rounded`}>
+                <div className="flex-1 flex justify-end pr-7">
+                  <TeamDisplay team={match.expand?.home_team} />
+                </div>
+                <div className="flex-shrink-0 flex flex-col items-center justify-center w-20">
+                  <div className="text-xs text-gray-500 mb-1">
+                    {new Date(match.date_time).toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </div>
+                  <span className="text-sm font-bold text-gray-400">VS</span>
+                </div>
+                <div className="flex-1 flex justify-start pl-7">
+                  <TeamDisplay team={match.expand?.away_team} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
 
+    // Mostrar los partidos según la fase actual
+    if (nextMatchday.phase.includes('group_')) {
+      const groupAMatches = nextMatches.filter(m => m.phase === 'group_a');
+      const groupBMatches = nextMatches.filter(m => m.phase === 'group_b');
+      return (
+        <div className="flex-1 space-y-4 overflow-y-auto">
+          {groupAMatches.length > 0 && renderMatchGroup(groupAMatches, 'Grupo A', 'bg-blue-50')}
+          {groupBMatches.length > 0 && renderMatchGroup(groupBMatches, 'Grupo B', 'bg-green-50')}
+        </div>
+      );
+    }
+
+    // Para otras fases, mostrar todos los partidos juntos
     return (
-      <div className="flex-1 space-y-6 overflow-y-auto">
-        {goldMatches.length > 0 && (
-          <div>
-            <h4 className="text-yellow-600 font-semibold mb-3 flex items-center gap-2">
-              <div className="w-3 h-3 bg-yellow-200 rounded-full"></div>
-              Copa Oro
-            </h4>
-            <div className="space-y-3">
-              {goldMatches.map((match) => (
-                <div key={match.id} className="flex items-center justify-between p-2 bg-yellow-50 rounded">
-                  <TeamDisplay team={match.expand?.home_team} />
-                  <div className="flex-shrink-0 w-16 text-center">
-                    <span className="text-sm font-bold text-gray-400">VS</span>
-                  </div>
-                  <TeamDisplay team={match.expand?.away_team} />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {silverMatches.length > 0 && (
-          <div>
-            <h4 className="text-gray-600 font-semibold mb-3 flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-200 rounded-full"></div>
-              Copa Plata
-            </h4>
-            <div className="space-y-3">
-              {silverMatches.map((match) => (
-                <div key={match.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <TeamDisplay team={match.expand?.home_team} />
-                  <div className="flex-shrink-0 w-16 text-center">
-                    <span className="text-sm font-bold text-gray-400">VS</span>
-                  </div>
-                  <TeamDisplay team={match.expand?.away_team} />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+      <div className="flex-1 space-y-4 overflow-y-auto">
+        {renderMatchGroup(nextMatches, PHASE_LABELS[nextMatchday.phase], 'bg-gray-50')}
       </div>
     );
   };
@@ -311,11 +334,10 @@ const Home = () => {
           {/* Next Fixtures Section */}
           <section className="h-full">
             <h2 className="text-2xl font-semibold mb-4 text-text">
-              {nextMatchday?.phase === 'gold_final' || nextMatchday?.phase === 'silver_final' 
-                ? 'Próximos Partidos' 
-                : nextMatchday?.phase === 'gold_semi' || nextMatchday?.phase === 'silver_semi'
-                ? 'Próximos Partidos'
-                : 'Próxima Fecha'}
+              {nextMatchday?.phase?.includes('final') ? 'Finales' :
+               nextMatchday?.phase?.includes('semi') ? 'Semifinales' :
+               nextMatchday?.phase?.includes('group') ? 'Fase de Grupos' :
+               'Próxima Fecha'}
             </h2>
             {loading ? (
               <div className="bg-white p-4 rounded-lg shadow animate-pulse h-[450px]">
@@ -329,7 +351,7 @@ const Home = () => {
                     <h3 className="text-lg font-semibold">Jornada {nextMatchday.number}</h3>
                     <div className="flex items-center text-sm">
                       <Calendar className="w-4 h-4 mr-2" />
-                      {new Date(nextMatchday.date).toLocaleDateString()}
+                      {new Date(nextMatchday.date_time).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
@@ -369,14 +391,14 @@ const Home = () => {
               return (
                 <div key={sponsor.id} className="text-center">
                   <div className="w-32 h-32 mx-auto mb-3 bg-white rounded-lg shadow-md overflow-hidden">
-                    {sponsor.logo ? (
+                    {sponsor.image ? (
                       <img
-                        src={pb.getFileUrl(sponsor, sponsor.logo)}
+                        src={pb.getFileUrl(sponsor, sponsor.image)}
                         alt={sponsor.name}
                         className="w-full h-full object-contain p-2"
                         onError={(e) => {
                           console.error('Image load error:', e);
-                          e.target.src = '';
+                          e.target.src = 'https://via.placeholder.com/128?text=' + encodeURIComponent(sponsor.name);
                         }}
                       />
                     ) : (

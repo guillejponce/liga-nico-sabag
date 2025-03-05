@@ -206,11 +206,6 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
       name: '',
       description: '',
       captain_id: '',
-      won_matches: 0,
-      drawn_matches: 0,
-      lost_matches: 0,
-      scored_goals: 0,
-      concieved_goals: 0,
       instagram_url: '',
     }
   );
@@ -219,11 +214,8 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
   const [logoPreview, setLogoPreview] = useState(team?.logo ? pb.getFileUrl(team, team.logo) : null);
 
   const handleChange = (e) => {
-    const { name, value, type } = e.target;
-    const updatedValue = type === 'number' 
-      ? value === '' ? 0 : Number(value) 
-      : value;
-    setFormData({ ...formData, [name]: updatedValue });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
     setFormErrors({ ...formErrors, [name]: '' });
   };
 
@@ -246,7 +238,20 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      onSave(formData);
+      // When saving, we'll only send the necessary fields
+      const dataToSave = {
+        name: formData.name,
+        description: formData.description,
+        captain_id: formData.captain_id,
+        instagram_url: formData.instagram_url,
+      };
+      
+      // Only include logo if it was changed/added
+      if (formData.logo) {
+        dataToSave.logo = formData.logo;
+      }
+      
+      onSave(dataToSave);
     }
   };
 
@@ -285,6 +290,7 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
               <p className="text-xs text-gray-500">Click to upload or change</p>
             </div>
           </div>
+          
           <input
             type="text"
             name="name"
@@ -295,6 +301,7 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
             required
           />
           {formErrors.name && <p className="text-red-500 text-sm">{formErrors.name}</p>}
+          
           <textarea
             name="description"
             value={formData.description}
@@ -304,6 +311,7 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
             required
           />
           {formErrors.description && <p className="text-red-500 text-sm">{formErrors.description}</p>}
+          
           <select
             name="captain_id"
             value={formData.captain_id}
@@ -317,46 +325,7 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
               </option>
             ))}
           </select>
-          <input
-            type="number"
-            name="won_matches"
-            value={formData.won_matches}
-            onChange={handleChange}
-            placeholder="Won Matches"
-            className="w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="number"
-            name="drawn_matches"
-            value={formData.drawn_matches}
-            onChange={handleChange}
-            placeholder="Drawn Matches"
-            className="w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="number"
-            name="lost_matches"
-            value={formData.lost_matches}
-            onChange={handleChange}
-            placeholder="Lost Matches"
-            className="w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="number"
-            name="scored_goals"
-            value={formData.scored_goals}
-            onChange={handleChange}
-            placeholder="Scored Goals"
-            className="w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="number"
-            name="concieved_goals"
-            value={formData.concieved_goals}
-            onChange={handleChange}
-            placeholder="Conceded Goals"
-            className="w-full px-3 py-2 border rounded"
-          />
+          
           <input
             type="url"
             name="instagram_url"
@@ -365,6 +334,7 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
             placeholder="Instagram URL"
             className="w-full px-3 py-2 border rounded"
           />
+          
           <div className="flex justify-end">
             <button
               type="button"

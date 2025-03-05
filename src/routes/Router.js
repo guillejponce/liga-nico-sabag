@@ -14,11 +14,13 @@ import AdminSanctions from '../pages/admin/AdminSanctions';
 import AdminTeamOfTheWeek from '../pages/admin/AdminTeamOfTheWeek';
 import AdminBanners from '../pages/admin/AdminBanners';
 import AdminEditions from '../pages/admin/AdminEditions';
+import AdminGroups from '../pages/admin/AdminGroups';
 import ProtectedRoute from '../components/admin/ProtectedRoute';
 import PlayerStatistics from '../pages/PlayerStatistics';
 import Editions from '../pages/Editions';
-
-const AppRoutes = () => {
+import HistoricalTable from '../pages/HistoricalTable';
+import Rules from '../pages/Rules';
+const Router = () => {
   return (
     <Routes>
       {/* Public routes */}
@@ -30,10 +32,12 @@ const AppRoutes = () => {
       <Route path="/teams/:teamId" element={<TeamDetails />} />
       <Route path="/admin/login" element={<Login />} />
       <Route path="/editions" element={<Editions />} />
+      <Route path="/historical-table" element={<HistoricalTable />} />
+      <Route path="/rules" element={<Rules />} />
 
       {/* Protected admin routes */}
-      <Route element={<ProtectedRoute />}> {/* Remove the path="/admin" from here */}
-        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} /> {/* Add this line */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/teams" element={<AdminTeams />} />
         <Route path="/admin/players" element={<AdminPlayers />} />
@@ -42,9 +46,10 @@ const AppRoutes = () => {
         <Route path="/admin/sanctions" element={<AdminSanctions />} />
         <Route path="/admin/banners" element={<AdminBanners />} />
         <Route path="/admin/editions" element={<AdminEditions />} />
+        <Route path="/admin/groups" element={<AdminGroups />} />
       </Route>
     </Routes>
   );
 };
 
-export default AppRoutes;
+export default Router;

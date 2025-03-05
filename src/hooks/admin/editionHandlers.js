@@ -102,3 +102,34 @@ export const fetchLatestEdition = async () => {
     throw new Error('Failed to fetch latest edition. Please try again.');
   }
 };
+
+export const setCurrentEdition = async (id) => {
+  try {
+    // First, update all editions to set is_current to false
+    const allEditions = await pb.collection('editions').getFullList();
+    await Promise.all(
+      allEditions.map((edition) =>
+        pb.collection('editions').update(edition.id, { is_current: false })
+      )
+    );
+
+    // Then set the selected edition as current
+    await pb.collection('editions').update(id, { is_current: true });
+  } catch (err) {
+    console.error('Error setting current edition:', err);
+    throw new Error(`Failed to set current edition: ${err.message}`);
+  }
+};
+
+export const fetchCurrentEdition = async () => {
+  try {
+    const resultList = await pb.collection('editions').getList(1, 1, {
+      filter: 'is_current = true',
+      expand: 'gold_champion,silver_champion,gold_second,silver_second,topscorer,player_of_the_tournament,top_goalkeeper'
+    });
+    return resultList.items[0] || null;
+  } catch (err) {
+    console.error('Error fetching current edition:', err);
+    throw new Error('Failed to fetch current edition. Please try again.');
+  }
+};

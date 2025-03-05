@@ -1,15 +1,37 @@
 import { pb } from '../../config';
+import { fetchCurrentEdition } from './editionHandlers';
 
-export const fetchMatchdays = async () => {
+export const PHASE_OPTIONS = [
+  { label: "Grupo A", value: "group_a" },
+  { label: "Grupo B", value: "group_b" },
+  { label: "Grupo Oro", value: "gold_group" },
+  { label: "Grupo Plata", value: "silver_group" },
+  { label: "Grupo Bronce", value: "bronze_group" },
+  { label: "Semifinal Oro", value: "gold_semi" },
+  { label: "Semifinal Plata", value: "silver_semi" },
+  { label: "Semifinal Bronce", value: "bronze_semi" },
+  { label: "Final Oro", value: "gold_final" },
+  { label: "Final Plata", value: "silver_final" },
+  { label: "Final Bronce", value: "bronze_final" },
+];
+
+export const fetchMatchdays = async (signal) => {
   try {
-    const response = await pb.collection('matchdays').getList(1, 100, {
+    const response = await pb.collection('matchdays').getFullList({
       sort: '-number',
+      expand: 'season',
+      $autoCancel: false,
+      $cancelKey: 'matchdays',
+      signal
     });
-    console.log('Fetched matchdays:', response.items);
-    return response.items;
+    return response;
   } catch (err) {
+    if (err.name === 'AbortError' || err.message.includes('autocancelled')) {
+      console.log('Request cancelled for matchdays');
+      return [];
+    }
     console.error('Error fetching matchdays:', err);
-    throw new Error('Failed to fetch matchdays. Please try again.');
+    throw err;
   }
 };
 
@@ -21,17 +43,34 @@ export const createMatchday = async (matchdayData) => {
       throw new Error('Matchday date_time is required and cannot be empty');
     }
 
-    // Fetch all existing matchdays to determine the next matchday number
-    const existingMatchdays = await fetchAllMatchdays();
-    // Find the highest number and add 1
-    const maxNumber = Math.max(...existingMatchdays.map(m => m.number), 0);
+    if (!PHASE_OPTIONS.find(option => option.value === matchdayData.phase)) {
+      throw new Error('Invalid phase value');
+    }
+
+    const currentEdition = await fetchCurrentEdition();
+    if (!currentEdition) {
+      throw new Error('No current edition found. Please set a current edition before creating matchdays.');
+    }
+
+    // Fetch all matchdays for the current season and phase
+    const existingMatchdays = await pb.collection('matchdays').getFullList({
+      filter: `season = "${currentEdition.id}" && phase = "${matchdayData.phase}"`,
+      sort: '+number'
+    });
+
+    // Find the highest number for this phase and season
+    const maxNumber = existingMatchdays.length > 0 
+      ? Math.max(...existingMatchdays.map(m => m.number))
+      : 0;
     const nextNumber = maxNumber + 1;
+
+    console.log(`Creating matchday number ${nextNumber} for phase ${matchdayData.phase}`);
 
     const newMatchdayData = {
       ...matchdayData,
       number: nextNumber,
       matches: [], // Initialize with empty matches array
-      phase: matchdayData.phase || 'regular', // Default to 'regular' if not provided
+      season: currentEdition.id, // Set the season to current edition
     };
 
     const createdMatchday = await pb.collection('matchdays').create(newMatchdayData);

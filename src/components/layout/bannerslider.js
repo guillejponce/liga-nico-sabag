@@ -66,7 +66,7 @@ const BannerSlider = ({ banners, currentBannerIndex, setCurrentBannerIndex }) =>
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
                     {banner?.title}
                   </h1>
-                  <p className="text-lg md:text-xl lg:text-2xl">
+                  <p className="text-lg md:text-xl lg:text-2xl" style={{ whiteSpace: 'pre-line' }}>
                     {banner?.description}
                   </p>
                 </div>

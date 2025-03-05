@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Goal, AlertTriangle, Users } from 'lucide-react';
 import { pb } from '../config';
 import SoccerPitch from '../components/teams/SoccerPitch';
+import { fetchCurrentEdition } from '../hooks/admin/editionHandlers';
 
 const TABS = {
   GOALS: 'goals',
@@ -16,6 +17,20 @@ const PlayerStatistics = () => {
   const [loading, setLoading] = useState(true);
   const [matchdays, setMatchdays] = useState([]);
   const [teamsOfWeek, setTeamsOfWeek] = useState([]);
+  const [currentEdition, setCurrentEdition] = useState(null);
+
+  useEffect(() => {
+    const loadCurrentEdition = async () => {
+      try {
+        const edition = await fetchCurrentEdition();
+        setCurrentEdition(edition);
+      } catch (error) {
+        console.error('Error loading current edition:', error);
+      }
+    };
+
+    loadCurrentEdition();
+  }, []);
 
   useEffect(() => {
     const loadPlayers = async () => {
@@ -38,8 +53,11 @@ const PlayerStatistics = () => {
 
   useEffect(() => {
     const loadMatchdays = async () => {
+      if (!currentEdition) return;
+
       try {
         const records = await pb.collection('matchdays').getFullList({
+          filter: `season = "${currentEdition.id}"`,
           sort: '-number'
         });
         setMatchdays(records);
@@ -55,11 +73,11 @@ const PlayerStatistics = () => {
     };
 
     loadMatchdays();
-  }, []);
+  }, [currentEdition]);
 
   useEffect(() => {
     const loadTeamsOfWeek = async () => {
-      if (activeTab !== TABS.TEAM_OF_WEEK) return;
+      if (activeTab !== TABS.TEAM_OF_WEEK || !currentEdition) return;
       
       try {
         setLoading(true);
@@ -94,7 +112,7 @@ const PlayerStatistics = () => {
     };
 
     loadTeamsOfWeek();
-  }, [matchdays, activeTab]);
+  }, [matchdays, activeTab, currentEdition]);
 
   const getSortField = (tab) => {
     switch (tab) {

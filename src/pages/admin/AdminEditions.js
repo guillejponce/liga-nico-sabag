@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Plus, Edit2, Trash2, Trophy } from 'lucide-react';
+import { Loader2, Plus, Edit2, Trash2, Trophy, Star } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { pb } from '../../config';
-import { fetchEditions, createEdition, updateEdition, deleteEdition } from '../../hooks/admin/editionHandlers';
+import { fetchEditions, createEdition, updateEdition, deleteEdition, setCurrentEdition } from '../../hooks/admin/editionHandlers';
 import { fetchTeams } from '../../hooks/admin/teamHandlers';
 import { fetchPlayers } from '../../hooks/admin/playerHandlers';
 
@@ -13,6 +13,7 @@ const AdminEditions = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEdition, setEditingEdition] = useState(null);
+  const [updatingCurrent, setUpdatingCurrent] = useState(false);
   const [formData, setFormData] = useState({
     number: '',
     year: new Date().getFullYear(),
@@ -139,6 +140,19 @@ const AdminEditions = () => {
     }
   };
 
+  const handleSetCurrentEdition = async (id) => {
+    try {
+      setUpdatingCurrent(true);
+      await setCurrentEdition(id);
+      toast.success('Current edition updated successfully');
+      loadData();
+    } catch (error) {
+      toast.error('Error updating current edition');
+    } finally {
+      setUpdatingCurrent(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -167,15 +181,28 @@ const AdminEditions = () => {
             {/* Header Section */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 text-white">
               <div className="flex justify-between items-start">
-                <div>
+                <div className="flex items-center gap-2">
                   <h3 className="text-xl font-bold">
                     Edition {edition.number}
                   </h3>
-                  <p className="text-blue-100 mt-1">
-                    {edition.year} - {edition.semester === "1" ? "1st" : "2nd"} Semester
-                  </p>
+                  {edition.is_current && (
+                    <span className="bg-yellow-400 text-blue-900 px-2 py-1 rounded-full text-xs font-semibold flex items-center">
+                      <Star className="w-3 h-3 mr-1" />
+                      Current
+                    </span>
+                  )}
                 </div>
                 <div className="flex space-x-2">
+                  {!edition.is_current && (
+                    <button
+                      onClick={() => handleSetCurrentEdition(edition.id)}
+                      disabled={updatingCurrent}
+                      className="p-2 bg-yellow-400 hover:bg-yellow-500 text-blue-900 rounded-lg transition-colors duration-200 flex items-center"
+                    >
+                      <Star className="w-5 h-5" />
+                      {updatingCurrent && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+                    </button>
+                  )}
                   <button
                     onClick={() => handleOpenModal(edition)}
                     className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200"
@@ -189,6 +216,16 @@ const AdminEditions = () => {
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <p className="text-blue-100">
+                  {edition.year} - {edition.semester === "1" ? "1st" : "2nd"} Semester
+                </p>
+                {edition.is_current && (
+                  <span className="text-xs text-blue-200">
+                    (Active season - matchdays and fixtures will be shown for this edition)
+                  </span>
+                )}
               </div>
               {edition.description && (
                 <p className="mt-2 text-sm text-blue-100 border-t border-blue-400/30 pt-2">

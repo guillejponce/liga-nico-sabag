@@ -39,6 +39,7 @@ const Navbar = () => {
     { to: '/table', label: 'Posiciones' },
     { to: '/stats', label: 'Estadísticas' },
     { to: '/editions', label: 'Ediciones' },
+    { to: '/rules', label: 'Reglamento' },
     { to: '/admin', label: 'Admin' },
   ];
 

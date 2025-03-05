@@ -1,120 +1,102 @@
 import { pb } from '../config';
 
-export const updateTeamStatistics = async () => {
+// Returns an array of phase identifiers based on a given stage
+export const getPhasesByStage = (stage) => {
+  const stagePhases = {
+    'group_phase': ['group_a', 'group_b'],
+    'playoffs': ['gold_group', 'silver_group', 'bronze_group'],
+    'semifinals': ['gold_semi', 'silver_semi', 'bronze_semi'],
+    'finals': ['gold_final', 'silver_final', 'bronze_final']
+  };
+  return stagePhases[stage] || [];
+};
+
+// Updates team statistics by first resetting them then processing finished matches
+export const updateTeamStatistics = async (selectedStage) => {
   try {
-    console.log('Starting complete team statistics update');
+    console.log('Starting team statistics update for stage:', selectedStage);
+    const phases = getPhasesByStage(selectedStage);
     
-    // 1. First get all teams and reset their statistics
+    // Get current edition
+    const currentEdition = await pb.collection('editions').getFirstListItem('is_current = true');
+    if (!currentEdition) {
+      throw new Error('No current edition found');
+    }
+    console.log('Current edition:', currentEdition);
+
+    // 1. Fetch all teams and reset their statistics
     const teams = await pb.collection('teams').getFullList();
-    console.log('Fetched all teams:', teams);
+    await Promise.all(
+      teams.map(team => {
+        const resetStats = {
+          won_matches: 0,
+          lost_matches: 0,
+          drawn_matches: 0,
+          scored_goals: 0,
+          concieved_goals: 0,
+        };
+        return pb.collection('teams').update(team.id, resetStats);
+      })
+    );
 
-    // Reset all team statistics
-    const resetPromises = teams.map(async (team) => {
-      const resetStats = {
-        won_matches: 0,
-        lost_matches: 0,
-        drawn_matches: 0,
-        scored_goals: 0,
-        concieved_goals: 0
-      };
-      console.log(`Resetting stats for team ${team.id}:`, resetStats);
-      return await pb.collection('teams').update(team.id, resetStats);
-    });
+    // 2. Build a filter string with proper spacing and current season
+    const phaseFilters = phases.map(phase => `matchday.phase="${phase}"`).join(' || ');
+    const filterString = `is_finished=true && matchday.season="${currentEdition.id}" && (${phaseFilters})`;
+    console.log('Using filter:', filterString);
 
-    await Promise.all(resetPromises);
-    console.log('All team statistics reset to zero');
-
-    // 2. Fetch ALL finished matches from ALL matchdays that are regular phase
-    const matches = await pb.collection('matches').getList(1, 500, {
-      filter: 'is_finished=true && matchday.phase="regular"',
+    const matchesResponse = await pb.collection('matches').getList(1, 500, {
+      filter: filterString,
       expand: 'home_team,away_team,matchday'
     });
+    const matches = matchesResponse.items;
 
-    console.log('Fetched all finished regular matches:', matches.items);
-
-    if (!matches.items.length) {
-      console.log('No finished regular matches found');
+    if (!matches.length) {
+      console.log('No finished matches found for stage:', selectedStage);
       return false;
     }
 
-    // 3. Process each match and collect team statistics updates
+    // 3. Process each match to update team statistics
     const teamUpdates = {};
-
-    for (const match of matches.items) {
-      console.log('Processing match:', match);
-
+    matches.forEach(match => {
       const homeTeamId = match.home_team;
       const awayTeamId = match.away_team;
+      // Ensure scores default to 0 if missing
       const homeScore = parseInt(match.home_team_score) || 0;
       const awayScore = parseInt(match.away_team_score) || 0;
 
-      console.log(`Match details - Home: ${homeTeamId}(${homeScore}) vs Away: ${awayTeamId}(${awayScore})`);
-
-      // Initialize team updates if not exists
       if (!teamUpdates[homeTeamId]) {
-        teamUpdates[homeTeamId] = {
-          won_matches: 0,
-          lost_matches: 0,
-          drawn_matches: 0,
-          scored_goals: 0,
-          concieved_goals: 0
-        };
+        teamUpdates[homeTeamId] = { won_matches: 0, lost_matches: 0, drawn_matches: 0, scored_goals: 0, concieved_goals: 0 };
       }
       if (!teamUpdates[awayTeamId]) {
-        teamUpdates[awayTeamId] = {
-          won_matches: 0,
-          lost_matches: 0,
-          drawn_matches: 0,
-          scored_goals: 0,
-          concieved_goals: 0
-        };
+        teamUpdates[awayTeamId] = { won_matches: 0, lost_matches: 0, drawn_matches: 0, scored_goals: 0, concieved_goals: 0 };
       }
 
-      // Update statistics based on match result
       if (homeScore > awayScore) {
         teamUpdates[homeTeamId].won_matches += 1;
         teamUpdates[awayTeamId].lost_matches += 1;
-        console.log('Home team won');
       } else if (homeScore < awayScore) {
         teamUpdates[homeTeamId].lost_matches += 1;
         teamUpdates[awayTeamId].won_matches += 1;
-        console.log('Away team won');
       } else {
         teamUpdates[homeTeamId].drawn_matches += 1;
         teamUpdates[awayTeamId].drawn_matches += 1;
-        console.log('Match drawn');
       }
 
-      // Update goals
       teamUpdates[homeTeamId].scored_goals += homeScore;
       teamUpdates[homeTeamId].concieved_goals += awayScore;
       teamUpdates[awayTeamId].scored_goals += awayScore;
       teamUpdates[awayTeamId].concieved_goals += homeScore;
-
-      console.log('Updated stats:', {
-        homeTeam: teamUpdates[homeTeamId],
-        awayTeam: teamUpdates[awayTeamId]
-      });
-    }
-
-    // 4. Update all teams in the database with their final statistics
-    console.log('Final team updates before saving:', teamUpdates);
-
-    const updatePromises = Object.entries(teamUpdates).map(async ([teamId, stats]) => {
-      console.log(`Updating team ${teamId} with final stats:`, stats);
-      try {
-        const result = await pb.collection('teams').update(teamId, stats);
-        console.log(`Team ${teamId} update result:`, result);
-        return result;
-      } catch (err) {
-        console.error(`Error updating team ${teamId}:`, err);
-        throw err;
-      }
     });
 
-    const results = await Promise.all(updatePromises);
-    console.log('All team updates completed:', results);
+    // 4. Update teams with the new statistics
+    await Promise.all(
+      Object.entries(teamUpdates).map(([teamId, stats]) => {
+        console.log(`Updating team ${teamId} with stats:`, stats);
+        return pb.collection('teams').update(teamId, stats);
+      })
+    );
 
+    console.log('Team statistics update completed for stage:', selectedStage);
     return true;
   } catch (error) {
     console.error('Error updating team statistics:', error);
@@ -122,23 +104,63 @@ export const updateTeamStatistics = async () => {
   }
 };
 
+// Calculates team statistics ensuring numeric defaults
 export const calculateTeamStats = (team) => {
-  // Points calculation: 3 for win, 1 for draw, 0 for loss
-  const points = (team.won_matches * 3) + (team.drawn_matches * 1);
-  
-  // Goal difference calculation
-  const goalDifference = team.scored_goals - team.concieved_goals;
-  
-  // Games played calculation
-  const gamesPlayed = team.won_matches + team.drawn_matches + team.lost_matches;
-
+  const won = team.won_matches || 0;
+  const drawn = team.drawn_matches || 0;
+  const lost = team.lost_matches || 0;
+  const scored = team.scored_goals || 0;
+  const concieved = team.concieved_goals || 0;
+  const points = (won * 3) + drawn;
+  const goalDifference = scored - concieved;
+  const gamesPlayed = won + drawn + lost;
   return {
     points,
     goalDifference,
     gamesPlayed,
-    goalsForAgainst: `${team.scored_goals}:${team.concieved_goals}`,
-    won: team.won_matches,
-    lost: team.lost_matches,
-    drawn: team.drawn_matches
+    goalsForAgainst: `${scored}:${concieved}`,
+    won,
+    drawn,
+    lost,
   };
+};
+
+// Returns an array of team IDs that have participated in matches for a given phase
+export const getTeamsByPhase = async (phase) => {
+  try {
+    // Get current edition
+    const currentEdition = await pb.collection('editions').getFirstListItem('is_current = true');
+    if (!currentEdition) {
+      console.log('No current edition found');
+      return [];
+    }
+
+    const matches = await pb.collection('matches').getList(1, 500, {
+      filter: `matchday.phase="${phase}" && matchday.season="${currentEdition.id}"`,
+      expand: 'home_team,away_team'
+    });
+    const teamIds = new Set();
+    matches.items.forEach(match => {
+      if (match.home_team) teamIds.add(match.home_team);
+      if (match.away_team) teamIds.add(match.away_team);
+    });
+    return Array.from(teamIds);
+  } catch (error) {
+    console.log(`No matches found for phase: ${phase}`);
+    return []; // Return empty array instead of throwing error
+  }
+};
+
+// Returns an array of team IDs that participated across all phases in a stage
+export const getParticipatingTeams = async (stage) => {
+  try {
+    const phases = getPhasesByStage(stage);
+    const teamsPromises = phases.map(phase => getTeamsByPhase(phase));
+    const teamsArrays = await Promise.all(teamsPromises);
+    const teamIds = new Set(teamsArrays.flat());
+    return Array.from(teamIds);
+  } catch (error) {
+    console.log(`No teams found for stage: ${stage}`);
+    return [];
+  }
 };

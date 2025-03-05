@@ -1,12 +1,24 @@
 import { pb } from '../config';
+import { fetchCurrentEdition } from '../hooks/admin/editionHandlers';
 
 export const updatePlayerStatistics = async () => {
   try {
     console.log('Starting complete player statistics update');
     
+    // 0. Get current edition
+    const currentEdition = await fetchCurrentEdition();
+    if (!currentEdition) {
+      throw new Error('No current edition found. Please set a current edition before updating statistics.');
+    }
+    console.log('Updating statistics for edition:', currentEdition);
+
     // 1. First get all players and reset their statistics
     const players = await pb.collection('players').getFullList();
-    console.log('Fetched all players:', players);
+    if (!players || players.length === 0) {
+      console.warn('No players found in the database');
+      return false;
+    }
+    console.log('Fetched all players:', players.length);
 
     // Reset all player statistics
     const resetPromises = players.map(async (player) => {
@@ -23,18 +35,52 @@ export const updatePlayerStatistics = async () => {
     await Promise.all(resetPromises);
     console.log('All player statistics reset to zero');
 
-    // 2. Fetch ALL events from ALL matches
+    // 2. Get all matchdays for current edition
+    const matchdays = await pb.collection('matchdays').getFullList({
+      filter: `season = "${currentEdition.id}"`,
+    });
+    if (!matchdays || matchdays.length === 0) {
+      console.warn('No matchdays found for current edition');
+      return false;
+    }
+    console.log('Fetched matchdays for current edition:', matchdays.length);
+
+    // 3. Get all matches for these matchdays
+    const matchIds = [];
+    for (const matchday of matchdays) {
+      const matches = await pb.collection('matches').getFullList({
+        filter: `matchday = "${matchday.id}"`,
+      });
+      matchIds.push(...matches.map(m => m.id));
+    }
+    if (matchIds.length === 0) {
+      console.warn('No matches found for current edition');
+      return false;
+    }
+    console.log('Found matches for current edition:', matchIds);
+
+    // 4. Fetch events only for matches in current edition
+    const filterConditions = matchIds.map(id => `match = "${id}"`).join(' || ');
+    console.log('Generated filter:', filterConditions);
+    
     const events = await pb.collection('events').getFullList({
+      filter: filterConditions,
       expand: 'player,match'
     });
+    if (!events || events.length === 0) {
+      console.warn('No events found for current edition');
+      return false;
+    }
+    console.log('Fetched events for current edition:', events.length);
 
-    console.log('Fetched all events:', events);
-
-    // 3. Process each event and collect player statistics updates
+    // 5. Process each event and collect player statistics updates
     const playerUpdates = {};
 
     for (const event of events) {
-      if (!event.player) continue;
+      if (!event.player) {
+        console.warn('Event has no player:', event);
+        continue;
+      }
       
       const playerId = event.player;
       console.log('Processing event:', event);
@@ -65,6 +111,7 @@ export const updatePlayerStatistics = async () => {
           playerUpdates[playerId].man_of_the_match += 1;
           break;
         default:
+          console.warn('Unknown event type:', event.type);
           break;
       }
 
@@ -74,7 +121,12 @@ export const updatePlayerStatistics = async () => {
       });
     }
 
-    // 4. Update all players in the database with their final statistics
+    if (Object.keys(playerUpdates).length === 0) {
+      console.warn('No player updates to process');
+      return false;
+    }
+
+    // 6. Update all players in the database with their final statistics
     console.log('Final player updates before saving:', playerUpdates);
 
     const updatePromises = Object.entries(playerUpdates).map(async ([playerId, stats]) => {
@@ -90,9 +142,9 @@ export const updatePlayerStatistics = async () => {
     });
 
     const results = await Promise.all(updatePromises);
-    console.log('All player updates completed:', results);
+    console.log('All player updates completed:', results.length);
 
-    return true;
+    return results.length > 0;
   } catch (error) {
     console.error('Error updating player statistics:', error);
     throw new Error(`Failed to update player statistics: ${error.message}`);

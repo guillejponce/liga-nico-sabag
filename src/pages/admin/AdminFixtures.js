@@ -453,18 +453,18 @@ const AdminFixtures = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 to-green-800 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-green-900 to-green-800 p-2 sm:p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-3">
-            <Trophy className="w-8 h-8 text-yellow-400" />
-            <h1 className="text-3xl font-bold text-white">Match Schedule Manager</h1>
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-4 sm:mb-8 space-y-4 sm:space-y-0">
+          <div className="flex items-center space-x-3 w-full sm:w-auto">
+            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" />
+            <h1 className="text-xl sm:text-3xl font-bold text-white">Match Schedule</h1>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
             <select
               value={selectedAdminPhase}
               onChange={(e) => setSelectedAdminPhase(e.target.value)}
-              className="p-3 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full sm:w-auto p-2 sm:p-3 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               {phaseOptions.map(option => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -472,10 +472,10 @@ const AdminFixtures = () => {
             </select>
             <button 
               onClick={handleCreateMatchday}
-              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200"
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors duration-200"
             >
               <Calendar className="w-5 h-5" />
-              <span>Generate New Matchday</span>
+              <span>New Matchday</span>
             </button>
           </div>
         </div>
@@ -486,18 +486,18 @@ const AdminFixtures = () => {
           </div>
         ) : (
           filteredMatchdays.map((matchday, mdIndex) => (
-            <div key={matchday.id} className="mb-8 bg-white/95 backdrop-blur rounded-lg shadow-xl overflow-hidden">
-              <div className="bg-gray-800 text-white p-4 rounded-t-lg flex justify-between items-center">
-                <div className="flex-1 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="w-6 h-6" />
-                    <span className="text-2xl font-bold">
-                      {phaseOptions.find(o => o.value === matchday.phase)?.label} - Jornada {matchday.number}
+            <div key={matchday.id} className="mb-4 sm:mb-8 bg-white/95 backdrop-blur rounded-lg shadow-xl overflow-hidden">
+              <div className="bg-gray-800 text-white p-3 sm:p-4 rounded-t-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
+                  <div className="flex items-center space-x-2 w-full sm:w-auto">
+                    <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <span className="text-lg sm:text-2xl font-bold truncate">
+                      {phaseOptions.find(o => o.value === matchday.phase)?.label} - J{matchday.number}
                     </span>
                     {matchday.date_time ? (
                       <button
                         onClick={() => setEditingMatchday(matchday)}
-                        className="ml-4 text-gray-300 hover:text-white hover:underline flex items-center space-x-1"
+                        className="ml-2 sm:ml-4 text-sm sm:text-base text-gray-300 hover:text-white hover:underline flex items-center space-x-1"
                       >
                         <span>
                           {new Date(matchday.date_time).toISOString().slice(0, 10)}
@@ -507,111 +507,117 @@ const AdminFixtures = () => {
                     ) : (
                       <button
                         onClick={() => setEditingMatchday(matchday)}
-                        className="ml-4 text-gray-400 hover:text-white hover:underline flex items-center space-x-1"
+                        className="ml-2 sm:ml-4 text-sm sm:text-base text-gray-400 hover:text-white hover:underline flex items-center space-x-1"
                       >
                         <span>Set date</span>
                         <Edit className="w-3 h-3 inline-block ml-1" />
                       </button>
                     )}
-
+                  </div>
+                  <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={() => handleSaveMatchdayStats(matchday.id, matchday.phase)}
+                      disabled={savedMatchdays[matchday.id] === 'saving'}
+                      className={`flex-1 sm:flex-none ${
+                        savedMatchdays[matchday.id] === 'saved'
+                          ? 'bg-green-500 hover:bg-green-600'
+                          : savedMatchdays[matchday.id] === 'error'
+                          ? 'bg-red-500 hover:bg-red-600'
+                          : 'bg-blue-500 hover:bg-blue-600'
+                      } text-white font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base flex items-center justify-center space-x-1 transition-colors duration-200`}
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>
+                        {savedMatchdays[matchday.id] === 'saving'
+                          ? 'Saving...'
+                          : savedMatchdays[matchday.id] === 'saved'
+                          ? 'Saved!'
+                          : savedMatchdays[matchday.id] === 'error'
+                          ? 'Error!'
+                          : 'Save'}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => handleAddMatch(matchday.id)}
+                      className="flex-1 sm:flex-none bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base flex items-center justify-center space-x-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Match</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMatchday(matchday.id)}
+                      className="flex-1 sm:flex-none bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleSaveMatchdayStats(matchday.id, matchday.phase)}
-                    disabled={savedMatchdays[matchday.id] === 'saving'}
-                    className={`${
-                      savedMatchdays[matchday.id] === 'saved'
-                        ? 'bg-green-500 hover:bg-green-600'
-                        : savedMatchdays[matchday.id] === 'error'
-                        ? 'bg-red-500 hover:bg-red-600'
-                        : 'bg-blue-500 hover:bg-blue-600'
-                    } text-white font-bold py-2 px-4 rounded flex items-center space-x-1 transition-colors duration-200`}
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>
-                      {savedMatchdays[matchday.id] === 'saving'
-                        ? 'Saving...'
-                        : savedMatchdays[matchday.id] === 'saved'
-                        ? 'Saved!'
-                        : savedMatchdays[matchday.id] === 'error'
-                        ? 'Error!'
-                        : 'Save Matchday'}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => handleAddMatch(matchday.id)}
-                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded flex items-center space-x-1"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add Match</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteMatchday(matchday.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-                  >
-                    Delete
-                  </button>
-                </div>
               </div>
-              <div className="p-6">
+              <div className="p-3 sm:p-6">
                 {matchday.matches && matchday.matches.length > 0 ? (
                   matchday.matches.map((match, matchIndex) => (
-                    <div key={matchIndex} className="mb-4 p-4 bg-gray-50 rounded-lg shadow-inner flex flex-col md:flex-row md:items-center md:justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          {match.home_team_logo ? (
-                            <img src={pb.getFileUrl({ id: match.home_team_id, collectionName: 'teams' }, match.home_team_logo)} alt={match.home_team} className="w-10 h-10 rounded-full" />
-                          ) : (
-                            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                              {match.home_team}
+                    <div key={matchIndex} className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg shadow-inner">
+                      <div className="flex flex-col space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                            <div className="flex items-center justify-center w-6 h-6 bg-gray-800 rounded-full text-white text-sm font-bold">
+                              {matchIndex + 1}
                             </div>
-                          )}
-                          <span className="font-bold text-gray-800">{match.home_team}</span>
-                        </div>
-                        <span className="text-gray-600">vs</span>
-                        <div className="flex items-center space-x-2">
-                          {match.away_team_logo ? (
-                            <img src={pb.getFileUrl({ id: match.away_team_id, collectionName: 'teams' }, match.away_team_logo)} alt={match.away_team} className="w-10 h-10 rounded-full" />
-                          ) : (
-                            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                              {match.away_team}
+                            <div className="flex items-center space-x-2">
+                              {match.home_team_logo ? (
+                                <img src={pb.getFileUrl({ id: match.home_team_id, collectionName: 'teams' }, match.home_team_logo)} alt={match.home_team} className="w-8 sm:w-10 h-8 sm:h-10 rounded-full" />
+                              ) : (
+                                <div className="w-8 sm:w-10 h-8 sm:h-10 bg-gray-300 rounded-full flex items-center justify-center text-xs sm:text-sm">
+                                  {match.home_team?.substring(0, 2)}
+                                </div>
+                              )}
+                              <span className="font-bold text-gray-800 text-sm sm:text-base">{match.home_team}</span>
                             </div>
-                          )}
-                          <span className="font-bold text-gray-800">{match.away_team}</span>
+                            <span className="text-gray-600">vs</span>
+                            <div className="flex items-center space-x-2">
+                              {match.away_team_logo ? (
+                                <img src={pb.getFileUrl({ id: match.away_team_id, collectionName: 'teams' }, match.away_team_logo)} alt={match.away_team} className="w-8 sm:w-10 h-8 sm:h-10 rounded-full" />
+                              ) : (
+                                <div className="w-8 sm:w-10 h-8 sm:h-10 bg-gray-300 rounded-full flex items-center justify-center text-xs sm:text-sm">
+                                  {match.away_team?.substring(0, 2)}
+                                </div>
+                              )}
+                              <span className="font-bold text-gray-800 text-sm sm:text-base">{match.away_team}</span>
+                            </div>
+                          </div>
+                          <div className="text-sm sm:text-base">
+                            <p className="text-gray-600">
+                              {match.date_time ? new Date(match.date_time).toLocaleDateString() + ' ' + new Date(match.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No date set'}
+                            </p>
+                            {match.is_finished && (
+                              <p className="text-green-600 font-bold">
+                                Result: {match.home_team_score} - {match.away_team_score}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="mt-4 md:mt-0">
-                        <p className="text-gray-600">
-                          {match.date_time ? new Date(match.date_time).toLocaleDateString() + ' ' + new Date(match.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No date set'}
-                        </p>
-                        {match.is_finished && (
-                          <p className="text-green-600 font-bold">
-                            Result: {match.home_team_score} - {match.away_team_score}
-                          </p>
-                        )}
-                      </div>
-                      <div className="mt-4 md:mt-0 flex space-x-2">
-                        <button
-                          onClick={() => openEditResultModal(mdIndex, matchIndex)}
-                          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-                        >
-                          Edit Result
-                        </button>
-                        {match.is_finished && (
+                        <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => openEventsModal(mdIndex, matchIndex)}
-                            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+                            onClick={() => openEditResultModal(mdIndex, matchIndex)}
+                            className="flex-1 sm:flex-none bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base"
                           >
-                            Edit Events
+                            Edit Result
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteMatch(mdIndex, matchIndex)}
-                          className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-                        >
-                          Delete Match
-                        </button>
+                          {match.is_finished && (
+                            <button
+                              onClick={() => openEventsModal(mdIndex, matchIndex)}
+                              className="flex-1 sm:flex-none bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base"
+                            >
+                              Edit Events
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteMatch(mdIndex, matchIndex)}
+                            className="flex-1 sm:flex-none bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 sm:px-4 rounded text-sm sm:text-base"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))

@@ -23,13 +23,14 @@ const stages = [
 
 const columns = [
   {
-    Header: 'Pos',
-    accessor: 'position',
-    Cell: ({ row }) => (
+    Header: '#',
+    accessor: (row, i) => i + 1,
+    Cell: ({ value }) => (
       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 font-bold text-blue-800 shadow-sm">
-        {row.index + 1}
+        {value}
       </div>
     ),
+    width: 50,
   },
   {
     Header: '',
@@ -116,6 +117,16 @@ const columns = [
 const TableComponent = ({ data, title }) => {
   const columns = useMemo(
     () => [
+      {
+        Header: '#',
+        accessor: (row, i) => i + 1,
+        Cell: ({ value }) => (
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 font-bold text-blue-800 shadow-sm">
+            {value}
+          </div>
+        ),
+        width: 50,
+      },
       {
         Header: 'Equipo',
         accessor: 'team.name',

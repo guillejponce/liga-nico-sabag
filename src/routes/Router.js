@@ -14,6 +14,7 @@ import AdminSanctions from '../pages/admin/AdminSanctions';
 import AdminTeamOfTheWeek from '../pages/admin/AdminTeamOfTheWeek';
 import AdminBanners from '../pages/admin/AdminBanners';
 import AdminEditions from '../pages/admin/AdminEditions';
+import AdminGroups from '../pages/admin/AdminGroups';
 import ProtectedRoute from '../components/admin/ProtectedRoute';
 import PlayerStatistics from '../pages/PlayerStatistics';
 import Editions from '../pages/Editions';
@@ -44,6 +45,7 @@ const Router = () => {
         <Route path="/admin/sanctions" element={<AdminSanctions />} />
         <Route path="/admin/banners" element={<AdminBanners />} />
         <Route path="/admin/editions" element={<AdminEditions />} />
+        <Route path="/admin/groups" element={<AdminGroups />} />
       </Route>
     </Routes>
   );

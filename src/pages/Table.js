@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTable, useSortBy } from 'react-table';
-import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+import { FaSort, FaSortUp, FaSortDown, FaUsers, FaTrophy, FaMedal } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useTeams } from '../hooks/teams/useTeams';
 import {
@@ -10,15 +10,15 @@ import {
   getTeamsByPhase,
   getPhasesByStage
 } from '../utils/teamsUtils';
+import { getGroupStats } from '../utils/groupUtils';
 import { pb } from '../config';
 
 // Stage options now in Spanish
 const stages = [
-  { value: 'group_phase', label: 'Fase de Grupos' },
-  { value: 'playoffs', label: 'Eliminatorias' },
-  { value: 'gold_finals', label: 'Finales de Oro' },
-  { value: 'silver_finals', label: 'Finales de Plata' },
-  { value: 'bronze_finals', label: 'Finales de Bronce' }
+  { value: 'group_phase', label: 'Fase de Grupos 1', icon: FaUsers },
+  { value: 'playoffs', label: 'Fase de Grupos 2', icon: FaUsers },
+  { value: 'gold_finals', label: 'Finales de Oro', icon: FaMedal },
+  { value: 'silver_finals', label: 'Finales de Plata', icon: FaMedal }
 ];
 
 const columns = [
@@ -113,14 +113,177 @@ const columns = [
   },
 ];
 
+const TableComponent = ({ data, title }) => {
+  const columns = useMemo(
+    () => [
+      {
+        Header: 'Equipo',
+        accessor: 'team.name',
+        Cell: ({ row }) => {
+          const team = row.original.team;
+          if (!team) return null;
+          
+          return (
+            <div className="flex items-center">
+              {team.logo && (
+                <img 
+                  src={team.logo} 
+                  alt={team.name} 
+                  className="w-10 h-10 mr-3 rounded-full object-cover border-2 border-gray-100 shadow-sm"
+                />
+              )}
+              <span className="font-medium text-gray-900">{team.name}</span>
+            </div>
+          );
+        },
+      },
+      {
+        Header: 'PJ',
+        accessor: 'matchesPlayed',
+        Cell: ({ value }) => (
+          <div className="text-center font-medium text-gray-700">{value}</div>
+        ),
+      },
+      {
+        Header: 'G',
+        accessor: 'wins',
+        Cell: ({ value }) => (
+          <div className="text-center font-medium text-green-600">{value}</div>
+        ),
+      },
+      {
+        Header: 'E',
+        accessor: 'draws',
+        Cell: ({ value }) => (
+          <div className="text-center font-medium text-yellow-600">{value}</div>
+        ),
+      },
+      {
+        Header: 'P',
+        accessor: 'losses',
+        Cell: ({ value }) => (
+          <div className="text-center font-medium text-red-600">{value}</div>
+        ),
+      },
+      {
+        Header: 'GF',
+        accessor: 'goalsFor',
+        Cell: ({ value }) => (
+          <div className="text-center font-medium text-blue-600">{value}</div>
+        ),
+      },
+      {
+        Header: 'GC',
+        accessor: 'goalsAgainst',
+        Cell: ({ value }) => (
+          <div className="text-center font-medium text-gray-600">{value}</div>
+        ),
+      },
+      {
+        Header: 'DG',
+        accessor: 'goalDifference',
+        Cell: ({ value }) => (
+          <div className={`text-center font-medium ${value > 0 ? 'text-green-600' : value < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+            {value > 0 ? `+${value}` : value}
+          </div>
+        ),
+      },
+      {
+        Header: 'Pts',
+        accessor: 'points',
+        Cell: ({ value }) => (
+          <div className="text-center font-bold text-blue-800 text-lg">{value}</div>
+        ),
+      },
+    ],
+    []
+  );
+
+  const {
+    getTableProps,
+    getTableBodyProps,
+    headerGroups,
+    rows,
+    prepareRow,
+  } = useTable(
+    {
+      columns,
+      data,
+      initialState: {
+        sortBy: [
+          { id: 'points', desc: true },
+          { id: 'goalDifference', desc: true },
+          { id: 'goalsFor', desc: true },
+        ],
+      },
+    },
+    useSortBy
+  );
+
+  return (
+    <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 hover:shadow-2xl transition-shadow duration-300">
+      <h2 className="text-2xl font-bold text-gray-800 p-6 bg-gradient-to-r from-gray-50 to-white border-b">{title}</h2>
+      <div className="overflow-x-auto">
+        <table {...getTableProps()} className="min-w-full">
+          <thead className="bg-gray-50">
+            {headerGroups.map(headerGroup => (
+              <tr {...headerGroup.getHeaderGroupProps()}>
+                {headerGroup.headers.map(column => (
+                  <th
+                    {...column.getHeaderProps(column.getSortByToggleProps())}
+                    className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200"
+                  >
+                    {column.render('Header')}
+                    <span>
+                      {column.isSorted
+                        ? column.isSortedDesc
+                          ? ' ↓'
+                          : ' ↑'
+                        : ''}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody {...getTableBodyProps()} className="bg-white divide-y divide-gray-100">
+            {rows.map(row => {
+              prepareRow(row);
+              return (
+                <tr {...row.getRowProps()} className="hover:bg-blue-50 transition-colors duration-150">
+                  {row.cells.map(cell => {
+                    return (
+                      <td
+                        {...cell.getCellProps()}
+                        className="px-6 py-4 whitespace-nowrap"
+                      >
+                        {cell.render('Cell')}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 const TableView = () => {
   const navigate = useNavigate();
-  // Ensure teams is at least an empty array to avoid errors on first render
   const { teams = [], loading, error, refreshTeams } = useTeams();
   const [selectedStage, setSelectedStage] = React.useState('group_phase');
   const [updating, setUpdating] = React.useState(false);
   const [participatingTeams, setParticipatingTeams] = React.useState([]);
   const [teamsByPhase, setTeamsByPhase] = React.useState({});
+  const [groupStats, setGroupStats] = React.useState({
+    group_a: [],
+    group_b: [],
+    gold_group: [],
+    silver_group: []
+  });
 
   // Load teams by phase for the current stage
   const loadTeamsForPhases = async (phases) => {
@@ -136,6 +299,20 @@ const TableView = () => {
       setTeamsByPhase({});
     }
   };
+
+  const loadGroupStats = async () => {
+    const stats = {
+      group_a: await getGroupStats('group_a_stats'),
+      group_b: await getGroupStats('group_b_stats'),
+      gold_group: await getGroupStats('gold_group_stats'),
+      silver_group: await getGroupStats('silver_group_stats')
+    };
+    setGroupStats(stats);
+  };
+
+  React.useEffect(() => {
+    loadGroupStats();
+  }, []);
 
   const handleRowClick = (teamId) => {
     navigate(`/teams/${teamId}`);
@@ -161,6 +338,11 @@ const TableView = () => {
       if (typeof refreshTeams === 'function') {
         await refreshTeams();
       }
+
+      // Reload group stats if we're in group phase
+      if (stage === 'group_phase') {
+        await loadGroupStats();
+      }
     } catch (err) {
       console.error('Error actualizando estadísticas del equipo:', err);
     } finally {
@@ -168,18 +350,9 @@ const TableView = () => {
     }
   };
 
-  React.useEffect(() => {
-    if (teams.length > 0) {
-      const phases = getPhasesByStage(selectedStage);
-      loadTeamsForPhases(phases);
-    }
-  }, [selectedStage, teams]);
-
-  // Helper function to safely extract goals from the "GF:GC" string
+  // Helper function to get total goals for sorting
   const getGoals = (team) => {
-    if (!team.goalsForAgainst) return 0;
-    const parts = team.goalsForAgainst.split(':');
-    return parseInt(parts[0]) || 0;
+    return team.goalsFor || 0;
   };
 
   // Filters teams based on provided team IDs from a phase
@@ -200,55 +373,98 @@ const TableView = () => {
       });
   };
 
-  // A reusable table component for displaying standings
-  const TableComponent = ({ data, title }) => {
-    const tableInstance = useTable({ columns, data }, useSortBy);
-    const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = tableInstance;
+  // Renders the appropriate tables for the current stage
+  const renderTables = () => {
+    if (selectedStage === 'group_phase') {
+      return (
+        <>
+          {groupStats.group_a.length > 0 ? (
+            <TableComponent 
+              data={groupStats.group_a.sort((a, b) => {
+                if (b.points !== a.points) return b.points - a.points;
+                if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+                return getGoals(b) - getGoals(a);
+              })} 
+              title="Grupo A" 
+            />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+              <h2 className="text-2xl font-bold text-gray-800">Grupo A</h2>
+              <p className="text-gray-600 mt-2">No hay partidos programados</p>
+            </div>
+          )}
+          {groupStats.group_b.length > 0 ? (
+            <TableComponent 
+              data={groupStats.group_b.sort((a, b) => {
+                if (b.points !== a.points) return b.points - a.points;
+                if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+                return getGoals(b) - getGoals(a);
+              })} 
+              title="Grupo B" 
+            />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+              <h2 className="text-2xl font-bold text-gray-800">Grupo B</h2>
+              <p className="text-gray-600 mt-2">No hay partidos programados</p>
+            </div>
+          )}
+        </>
+      );
+    }
 
-    return (
-      <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8">
-        <h2 className="text-2xl font-bold p-4 bg-gray-50 text-gray-800 border-b">{title}</h2>
-        <div className="overflow-x-auto">
-          <table {...getTableProps()} className="w-full">
-            <thead>
-              {headerGroups.map(headerGroup => (
-                <tr {...headerGroup.getHeaderGroupProps()} className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  {headerGroup.headers.map(column => (
-                    <th {...column.getHeaderProps()} className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">
-                      {column.render('Header')}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody {...getTableBodyProps()} className="divide-y divide-gray-100">
-              {rows.map(row => {
-                prepareRow(row);
-                return (
-                  <tr
-                    {...row.getRowProps()}
-                    className="hover:bg-blue-50 cursor-pointer transition-all duration-200"
-                    onClick={() => handleRowClick(row.original.id)}
-                  >
-                    {row.cells.map(cell => (
-                      <td {...cell.getCellProps()} className="px-4 py-2 whitespace-nowrap">
-                        {cell.render('Cell')}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+    if (selectedStage === 'playoffs') {
+      return (
+        <>
+          {groupStats.gold_group.length > 0 ? (
+            <TableComponent 
+              data={groupStats.gold_group.sort((a, b) => {
+                if (b.points !== a.points) return b.points - a.points;
+                if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+                return getGoals(b) - getGoals(a);
+              })} 
+              title="Grupo Oro" 
+            />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+              <h2 className="text-2xl font-bold text-gray-800">Grupo Oro</h2>
+              <p className="text-gray-600 mt-2">No hay partidos programados</p>
+            </div>
+          )}
+          {groupStats.silver_group.length > 0 ? (
+            <TableComponent 
+              data={groupStats.silver_group.sort((a, b) => {
+                if (b.points !== a.points) return b.points - a.points;
+                if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+                return getGoals(b) - getGoals(a);
+              })} 
+              title="Grupo Plata" 
+            />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+              <h2 className="text-2xl font-bold text-gray-800">Grupo Plata</h2>
+              <p className="text-gray-600 mt-2">No hay partidos programados</p>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    // For finals stages
+    if (selectedStage.includes('finals')) {
+      const title = stages.find(s => s.value === selectedStage)?.label;
+      return (
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+          <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+          <p className="text-gray-600 mt-2">No hay partidos programados</p>
         </div>
-      </div>
-    );
+      );
+    }
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -261,112 +477,34 @@ const TableView = () => {
     );
   }
 
-  // Renders the appropriate tables for the current stage
-  const renderTables = () => {
-    const phases = getPhasesByStage(selectedStage);
-    
-    if (selectedStage === 'group_phase') {
-      const groupATeams = getTeamsForPhase(teams, teamsByPhase['group_a'] || []);
-      const groupBTeams = getTeamsForPhase(teams, teamsByPhase['group_b'] || []);
-      return (
-        <>
-          {groupATeams.length > 0 ? (
-            <TableComponent data={groupATeams} title="Grupo A" />
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Grupo A</h2>
-              <p className="text-gray-600 mt-2">No hay partidos programados</p>
-            </div>
-          )}
-          {groupBTeams.length > 0 ? (
-            <TableComponent data={groupBTeams} title="Grupo B" />
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Grupo B</h2>
-              <p className="text-gray-600 mt-2">No hay partidos programados</p>
-            </div>
-          )}
-        </>
-      );
-    }
-
-    if (selectedStage === 'playoffs') {
-      const goldTeams = getTeamsForPhase(teams, teamsByPhase['gold_group'] || []);
-      const silverTeams = getTeamsForPhase(teams, teamsByPhase['silver_group'] || []);
-      const bronzeTeams = getTeamsForPhase(teams, teamsByPhase['bronze_group'] || []);
-      return (
-        <>
-          {goldTeams.length > 0 ? (
-            <TableComponent data={goldTeams} title="Grupo Oro" />
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Grupo Oro</h2>
-              <p className="text-gray-600 mt-2">No hay partidos programados</p>
-            </div>
-          )}
-          {silverTeams.length > 0 ? (
-            <TableComponent data={silverTeams} title="Grupo Plata" />
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Grupo Plata</h2>
-              <p className="text-gray-600 mt-2">No hay partidos programados</p>
-            </div>
-          )}
-          {bronzeTeams.length > 0 ? (
-            <TableComponent data={bronzeTeams} title="Grupo Bronce" />
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Grupo Bronce</h2>
-              <p className="text-gray-600 mt-2">No hay partidos programados</p>
-            </div>
-          )}
-        </>
-      );
-    }
-
-    // For finals stages
-    if (selectedStage.includes('finals')) {
-      const finalsTeams = getTeamsForPhase(teams, participatingTeams || []);
-      const title = stages.find(s => s.value === selectedStage)?.label;
-      return finalsTeams.length > 0 ? (
-        <TableComponent data={finalsTeams} title={title} />
-      ) : (
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-          <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-          <p className="text-gray-600 mt-2">No hay partidos programados</p>
-        </div>
-      );
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
-      {/* Overlay spinner */}
-      {updating && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <div className="flex flex-wrap gap-2 bg-white rounded-xl p-2 shadow-md">
+          {stages.map((stage) => (
+            <button
+              key={stage.value}
+              onClick={() => handleStageChange({ target: { value: stage.value } })}
+              disabled={updating}
+              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 min-w-[200px]
+                ${selectedStage === stage.value 
+                  ? 'bg-blue-500 text-white shadow-md' 
+                  : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              <stage.icon className={`w-5 h-5 ${selectedStage === stage.value ? 'text-white' : 'text-gray-400'}`} />
+              {stage.label}
+            </button>
+          ))}
         </div>
+      </div>
+
+      {updating ? (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      ) : (
+        renderTables()
       )}
-      
-      <div className="max-w-screen-md mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800">Tabla de Posiciones</h1>
-          <div className="flex items-center mt-4 md:mt-0">
-            <select value={selectedStage} onChange={handleStageChange} className="p-2 border rounded">
-              {stages.map(stage => (
-                <option key={stage.value} value={stage.value}>
-                  {stage.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-      
-      {/* Main content container has been narrowed */}
-      <div className="max-w-screen-md mx-auto">
-        {renderTables()}
-      </div>
     </div>
   );
 };

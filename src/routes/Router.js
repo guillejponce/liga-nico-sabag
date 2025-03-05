@@ -19,7 +19,7 @@ import ProtectedRoute from '../components/admin/ProtectedRoute';
 import PlayerStatistics from '../pages/PlayerStatistics';
 import Editions from '../pages/Editions';
 import HistoricalTable from '../pages/HistoricalTable';
-
+import Rules from '../pages/Rules';
 const Router = () => {
   return (
     <Routes>
@@ -33,6 +33,7 @@ const Router = () => {
       <Route path="/admin/login" element={<Login />} />
       <Route path="/editions" element={<Editions />} />
       <Route path="/historical-table" element={<HistoricalTable />} />
+      <Route path="/rules" element={<Rules />} />
 
       {/* Protected admin routes */}
       <Route element={<ProtectedRoute />}>

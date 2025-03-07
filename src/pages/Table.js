@@ -311,6 +311,9 @@ const TableView = () => {
     silver_group: []
   });
 
+  // Ref para mantener el controlador de cancelación actual
+  const abortControllerRef = React.useRef(null);
+
   // Load teams by phase for the current stage
   const loadTeamsForPhases = async (phases) => {
     try {
@@ -328,25 +331,37 @@ const TableView = () => {
 
   const loadGroupStats = async (groupName) => {
     try {
+      // Cancelar cualquier petición pendiente para este grupo
+      pb.cancelRequest(groupName);
+      
       const stats = await getGroupStats(groupName);
       setGroupStats(prev => ({
         ...prev,
         [groupName.replace('_stats', '')]: stats
       }));
     } catch (error) {
-      console.error('Error loading group stats:', error);
+      // Ignorar errores de cancelación
+      if (!error.isAbort && !error.message?.includes('cancelled')) {
+        console.error('Error loading group stats:', error);
+      }
     }
   };
 
+  // Efecto para cargar estadísticas iniciales
   React.useEffect(() => {
-    // Load initial group stats based on selected tab
     const statsMap = {
       'group_a': 'group_a_stats',
       'group_b': 'group_b_stats',
       'gold_group': 'gold_group_stats',
       'silver_group': 'silver_group_stats'
     };
+
     loadGroupStats(statsMap[selectedTab]);
+
+    // Cleanup: cancelar peticiones pendientes
+    return () => {
+      pb.cancelRequest(statsMap[selectedTab]);
+    };
   }, [selectedTab]);
 
   const handleRowClick = (teamId) => {
@@ -381,20 +396,52 @@ const TableView = () => {
   const handleTabChange = async (tab) => {
     setSelectedTab(tab);
     setUpdating(true);
+    
+    const statsMap = {
+      'group_a': 'group_a_stats',
+      'group_b': 'group_b_stats',
+      'gold_group': 'gold_group_stats',
+      'silver_group': 'silver_group_stats'
+    };
+
     try {
+      await loadGroupStats(statsMap[tab]);
+      if (typeof refreshTeams === 'function') {
+        await refreshTeams();
+      }
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleStageChange = async (e) => {
+    const stage = e.target.value;
+    setSelectedStage(stage);
+    const newTab = stage === 'group_phase' ? 'group_a' : 'gold_group';
+    setSelectedTab(newTab);
+    setUpdating(true);
+    
+    try {
+      await updateTeamStatistics(stage);
+      const phases = getPhasesByStage(stage);
+      await loadTeamsForPhases(phases);
+      
       const statsMap = {
         'group_a': 'group_a_stats',
         'group_b': 'group_b_stats',
         'gold_group': 'gold_group_stats',
         'silver_group': 'silver_group_stats'
       };
-      await loadGroupStats(statsMap[tab]);
+      
+      await loadGroupStats(statsMap[newTab]);
       
       if (typeof refreshTeams === 'function') {
         await refreshTeams();
       }
     } catch (err) {
-      console.error('Error loading group stats:', err);
+      if (!err.message?.includes('autocancelled') && !err.name?.includes('AbortError')) {
+        console.error('Error actualizando estadísticas del equipo:', err);
+      }
     } finally {
       setUpdating(false);
     }
@@ -461,38 +508,6 @@ const TableView = () => {
           {selectedTab === 'silver_group' && renderTable(groupStats.silver_group, 'Grupo Plata')}
         </div>
       );
-    }
-  };
-
-  // Called when the user selects a new stage from the dropdown
-  const handleStageChange = async (e) => {
-    const stage = e.target.value;
-    setSelectedStage(stage);
-    // Set default tab for each stage
-    const newTab = stage === 'group_phase' ? 'group_a' : 'gold_group';
-    setSelectedTab(newTab);
-    setUpdating(true);
-    try {
-      await updateTeamStatistics(stage);
-      const phases = getPhasesByStage(stage);
-      await loadTeamsForPhases(phases);
-      
-      // Load stats for the new tab
-      const statsMap = {
-        'group_a': 'group_a_stats',
-        'group_b': 'group_b_stats',
-        'gold_group': 'gold_group_stats',
-        'silver_group': 'silver_group_stats'
-      };
-      await loadGroupStats(statsMap[newTab]);
-      
-      if (typeof refreshTeams === 'function') {
-        await refreshTeams();
-      }
-    } catch (err) {
-      console.error('Error actualizando estadísticas del equipo:', err);
-    } finally {
-      setUpdating(false);
     }
   };
 

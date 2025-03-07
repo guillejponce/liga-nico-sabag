@@ -326,19 +326,28 @@ const TableView = () => {
     }
   };
 
-  const loadGroupStats = async () => {
-    const stats = {
-      group_a: await getGroupStats('group_a_stats'),
-      group_b: await getGroupStats('group_b_stats'),
-      gold_group: await getGroupStats('gold_group_stats'),
-      silver_group: await getGroupStats('silver_group_stats')
-    };
-    setGroupStats(stats);
+  const loadGroupStats = async (groupName) => {
+    try {
+      const stats = await getGroupStats(groupName);
+      setGroupStats(prev => ({
+        ...prev,
+        [groupName.replace('_stats', '')]: stats
+      }));
+    } catch (error) {
+      console.error('Error loading group stats:', error);
+    }
   };
 
   React.useEffect(() => {
-    loadGroupStats();
-  }, []);
+    // Load initial group stats based on selected tab
+    const statsMap = {
+      'group_a': 'group_a_stats',
+      'group_b': 'group_b_stats',
+      'gold_group': 'gold_group_stats',
+      'silver_group': 'silver_group_stats'
+    };
+    loadGroupStats(statsMap[selectedTab]);
+  }, [selectedTab]);
 
   const handleRowClick = (teamId) => {
     navigate(`/teams/${teamId}`);
@@ -369,13 +378,35 @@ const TableView = () => {
     );
   };
 
+  const handleTabChange = async (tab) => {
+    setSelectedTab(tab);
+    setUpdating(true);
+    try {
+      const statsMap = {
+        'group_a': 'group_a_stats',
+        'group_b': 'group_b_stats',
+        'gold_group': 'gold_group_stats',
+        'silver_group': 'silver_group_stats'
+      };
+      await loadGroupStats(statsMap[tab]);
+      
+      if (typeof refreshTeams === 'function') {
+        await refreshTeams();
+      }
+    } catch (err) {
+      console.error('Error loading group stats:', err);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const renderTables = () => {
     if (selectedStage === 'group_phase') {
       return (
         <div>
           <div className="flex mb-6 bg-white rounded-lg shadow-sm p-1">
             <button
-              onClick={() => setSelectedTab('group_a')}
+              onClick={() => handleTabChange('group_a')}
               className={`flex-1 py-2 px-4 rounded-md transition-colors ${
                 selectedTab === 'group_a' 
                   ? 'bg-blue-500 text-white' 
@@ -385,7 +416,7 @@ const TableView = () => {
               Grupo A
             </button>
             <button
-              onClick={() => setSelectedTab('group_b')}
+              onClick={() => handleTabChange('group_b')}
               className={`flex-1 py-2 px-4 rounded-md transition-colors ${
                 selectedTab === 'group_b' 
                   ? 'bg-blue-500 text-white' 
@@ -406,7 +437,7 @@ const TableView = () => {
         <div>
           <div className="flex mb-6 bg-white rounded-lg shadow-sm p-1">
             <button
-              onClick={() => setSelectedTab('gold_group')}
+              onClick={() => handleTabChange('gold_group')}
               className={`flex-1 py-2 px-4 rounded-md transition-colors ${
                 selectedTab === 'gold_group' 
                   ? 'bg-blue-500 text-white' 
@@ -416,7 +447,7 @@ const TableView = () => {
               Grupo Oro
             </button>
             <button
-              onClick={() => setSelectedTab('silver_group')}
+              onClick={() => handleTabChange('silver_group')}
               className={`flex-1 py-2 px-4 rounded-md transition-colors ${
                 selectedTab === 'silver_group' 
                   ? 'bg-blue-500 text-white' 
@@ -438,27 +469,25 @@ const TableView = () => {
     const stage = e.target.value;
     setSelectedStage(stage);
     // Set default tab for each stage
-    setSelectedTab(stage === 'group_phase' ? 'group_a' : 'gold_group');
+    const newTab = stage === 'group_phase' ? 'group_a' : 'gold_group';
+    setSelectedTab(newTab);
     setUpdating(true);
     try {
       await updateTeamStatistics(stage);
       const phases = getPhasesByStage(stage);
       await loadTeamsForPhases(phases);
       
-      if (stage.includes('finals')) {
-        const teamIds = await getParticipatingTeams(stage);
-        setParticipatingTeams(teamIds);
-      } else {
-        setParticipatingTeams([]);
-      }
+      // Load stats for the new tab
+      const statsMap = {
+        'group_a': 'group_a_stats',
+        'group_b': 'group_b_stats',
+        'gold_group': 'gold_group_stats',
+        'silver_group': 'silver_group_stats'
+      };
+      await loadGroupStats(statsMap[newTab]);
       
       if (typeof refreshTeams === 'function') {
         await refreshTeams();
-      }
-
-      // Reload group stats if we're in group phase
-      if (stage === 'group_phase') {
-        await loadGroupStats();
       }
     } catch (err) {
       console.error('Error actualizando estadísticas del equipo:', err);

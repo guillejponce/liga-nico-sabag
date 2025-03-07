@@ -16,9 +16,7 @@ import { pb } from '../config';
 // Stage options now in Spanish
 const stages = [
   { value: 'group_phase', label: 'Fase de Grupos 1', icon: FaUsers },
-  { value: 'playoffs', label: 'Fase de Grupos 2', icon: FaUsers },
-  { value: 'gold_finals', label: 'Finales de Oro', icon: FaMedal },
-  { value: 'silver_finals', label: 'Finales de Plata', icon: FaMedal }
+  { value: 'playoffs', label: 'Fase de Grupos 2', icon: FaUsers }
 ];
 
 const columns = [
@@ -225,6 +223,7 @@ const TableComponent = ({ data, title }) => {
           { id: 'points', desc: true },
           { id: 'goalDifference', desc: true },
           { id: 'goalsFor', desc: true },
+          { id: 'goalsAgainst', desc: false }
         ],
       },
     },
@@ -234,49 +233,64 @@ const TableComponent = ({ data, title }) => {
   return (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 hover:shadow-2xl transition-shadow duration-300">
       <h2 className="text-2xl font-bold text-gray-800 p-6 bg-gradient-to-r from-gray-50 to-white border-b">{title}</h2>
-      <div className="overflow-x-auto">
-        <table {...getTableProps()} className="min-w-full">
-          <thead className="bg-gray-50">
-            {headerGroups.map(headerGroup => (
-              <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map(column => (
-                  <th
-                    {...column.getHeaderProps(column.getSortByToggleProps())}
-                    className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200"
-                  >
-                    {column.render('Header')}
-                    <span>
-                      {column.isSorted
-                        ? column.isSortedDesc
-                          ? ' ↓'
-                          : ' ↑'
-                        : ''}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody {...getTableBodyProps()} className="bg-white divide-y divide-gray-100">
-            {rows.map(row => {
-              prepareRow(row);
-              return (
-                <tr {...row.getRowProps()} className="hover:bg-blue-50 transition-colors duration-150">
-                  {row.cells.map(cell => {
-                    return (
-                      <td
-                        {...cell.getCellProps()}
-                        className="px-6 py-4 whitespace-nowrap"
-                      >
-                        {cell.render('Cell')}
-                      </td>
-                    );
-                  })}
+      <div className="w-full overflow-x-auto min-w-0">
+        <div className="inline-block min-w-full align-middle">
+          <table {...getTableProps()} className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-gray-50">
+              {headerGroups.map(headerGroup => (
+                <tr {...headerGroup.getHeaderGroupProps()}>
+                  {headerGroup.headers.map(column => (
+                    <th
+                      {...column.getHeaderProps(column.getSortByToggleProps())}
+                      className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200"
+                    >
+                      {column.render('Header')}
+                      <span>
+                        {column.isSorted
+                          ? column.isSortedDesc
+                            ? ' ↓'
+                            : ' ↑'
+                          : ''}
+                      </span>
+                    </th>
+                  ))}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+            </thead>
+            <tbody {...getTableBodyProps()} className="bg-white divide-y divide-gray-100">
+              {rows.map((row, index) => {
+                prepareRow(row);
+                return (
+                  <tr {...row.getRowProps()} className="hover:bg-blue-50 transition-colors duration-150">
+                    {row.cells.map((cell, cellIndex) => {
+                      // If this is the first column (position number)
+                      if (cellIndex === 0) {
+                        return (
+                          <td
+                            {...cell.getCellProps()}
+                            className="px-6 py-4 whitespace-nowrap"
+                          >
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 font-bold text-blue-800 shadow-sm">
+                              {index + 1}
+                            </div>
+                          </td>
+                        );
+                      }
+                      return (
+                        <td
+                          {...cell.getCellProps()}
+                          className="px-6 py-4 whitespace-nowrap"
+                        >
+                          {cell.render('Cell')}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -286,6 +300,7 @@ const TableView = () => {
   const navigate = useNavigate();
   const { teams = [], loading, error, refreshTeams } = useTeams();
   const [selectedStage, setSelectedStage] = React.useState('group_phase');
+  const [selectedTab, setSelectedTab] = React.useState('group_a');
   const [updating, setUpdating] = React.useState(false);
   const [participatingTeams, setParticipatingTeams] = React.useState([]);
   const [teamsByPhase, setTeamsByPhase] = React.useState({});
@@ -329,10 +344,101 @@ const TableView = () => {
     navigate(`/teams/${teamId}`);
   };
 
+  const renderTable = (data, title) => {
+    if (data.length > 0) {
+      return (
+        <TableComponent 
+          data={data.sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            if (a.points === 0 && b.points === 0) {
+              return b.team.name.localeCompare(a.team.name);
+            }
+            if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+            if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+            return a.goalsAgainst - b.goalsAgainst;
+          })} 
+          title={title} 
+        />
+      );
+    }
+    return (
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
+        <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+        <p className="text-gray-600 mt-2">No hay partidos programados</p>
+      </div>
+    );
+  };
+
+  const renderTables = () => {
+    if (selectedStage === 'group_phase') {
+      return (
+        <div>
+          <div className="flex mb-6 bg-white rounded-lg shadow-sm p-1">
+            <button
+              onClick={() => setSelectedTab('group_a')}
+              className={`flex-1 py-2 px-4 rounded-md transition-colors ${
+                selectedTab === 'group_a' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Grupo A
+            </button>
+            <button
+              onClick={() => setSelectedTab('group_b')}
+              className={`flex-1 py-2 px-4 rounded-md transition-colors ${
+                selectedTab === 'group_b' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Grupo B
+            </button>
+          </div>
+          {selectedTab === 'group_a' && renderTable(groupStats.group_a, 'Grupo A')}
+          {selectedTab === 'group_b' && renderTable(groupStats.group_b, 'Grupo B')}
+        </div>
+      );
+    }
+
+    if (selectedStage === 'playoffs') {
+      return (
+        <div>
+          <div className="flex mb-6 bg-white rounded-lg shadow-sm p-1">
+            <button
+              onClick={() => setSelectedTab('gold_group')}
+              className={`flex-1 py-2 px-4 rounded-md transition-colors ${
+                selectedTab === 'gold_group' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Grupo Oro
+            </button>
+            <button
+              onClick={() => setSelectedTab('silver_group')}
+              className={`flex-1 py-2 px-4 rounded-md transition-colors ${
+                selectedTab === 'silver_group' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Grupo Plata
+            </button>
+          </div>
+          {selectedTab === 'gold_group' && renderTable(groupStats.gold_group, 'Grupo Oro')}
+          {selectedTab === 'silver_group' && renderTable(groupStats.silver_group, 'Grupo Plata')}
+        </div>
+      );
+    }
+  };
+
   // Called when the user selects a new stage from the dropdown
   const handleStageChange = async (e) => {
     const stage = e.target.value;
     setSelectedStage(stage);
+    // Set default tab for each stage
+    setSelectedTab(stage === 'group_phase' ? 'group_a' : 'gold_group');
     setUpdating(true);
     try {
       await updateTeamStatistics(stage);
@@ -361,117 +467,6 @@ const TableView = () => {
     }
   };
 
-  // Helper function to get total goals for sorting
-  const getGoals = (team) => {
-    return team.goalsFor || 0;
-  };
-
-  // Filters teams based on provided team IDs from a phase
-  const getTeamsForPhase = (teams, phaseTeamIds) => {
-    if (!teams || !phaseTeamIds) return [];
-    const filteredTeams = teams.filter(team => phaseTeamIds.includes(team.id));
-    return filteredTeams
-      .map(team => ({
-        id: team.id,
-        logo: team.logo ? pb.getFileUrl(team, team.logo) : '',
-        name: team.name,
-        ...calculateTeamStats(team)
-      }))
-      .sort((a, b) => {
-        if (b.points !== a.points) return b.points - a.points;
-        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-        return getGoals(b) - getGoals(a);
-      });
-  };
-
-  // Renders the appropriate tables for the current stage
-  const renderTables = () => {
-    if (selectedStage === 'group_phase') {
-      return (
-        <>
-          {groupStats.group_a.length > 0 ? (
-            <TableComponent 
-              data={groupStats.group_a.sort((a, b) => {
-                if (b.points !== a.points) return b.points - a.points;
-                if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-                return getGoals(b) - getGoals(a);
-              })} 
-              title="Grupo A" 
-            />
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Grupo A</h2>
-              <p className="text-gray-600 mt-2">No hay partidos programados</p>
-            </div>
-          )}
-          {groupStats.group_b.length > 0 ? (
-            <TableComponent 
-              data={groupStats.group_b.sort((a, b) => {
-                if (b.points !== a.points) return b.points - a.points;
-                if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-                return getGoals(b) - getGoals(a);
-              })} 
-              title="Grupo B" 
-            />
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Grupo B</h2>
-              <p className="text-gray-600 mt-2">No hay partidos programados</p>
-            </div>
-          )}
-        </>
-      );
-    }
-
-    if (selectedStage === 'playoffs') {
-      return (
-        <>
-          {groupStats.gold_group.length > 0 ? (
-            <TableComponent 
-              data={groupStats.gold_group.sort((a, b) => {
-                if (b.points !== a.points) return b.points - a.points;
-                if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-                return getGoals(b) - getGoals(a);
-              })} 
-              title="Grupo Oro" 
-            />
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Grupo Oro</h2>
-              <p className="text-gray-600 mt-2">No hay partidos programados</p>
-            </div>
-          )}
-          {groupStats.silver_group.length > 0 ? (
-            <TableComponent 
-              data={groupStats.silver_group.sort((a, b) => {
-                if (b.points !== a.points) return b.points - a.points;
-                if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-                return getGoals(b) - getGoals(a);
-              })} 
-              title="Grupo Plata" 
-            />
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-              <h2 className="text-2xl font-bold text-gray-800">Grupo Plata</h2>
-              <p className="text-gray-600 mt-2">No hay partidos programados</p>
-            </div>
-          )}
-        </>
-      );
-    }
-
-    // For finals stages
-    if (selectedStage.includes('finals')) {
-      const title = stages.find(s => s.value === selectedStage)?.label;
-      return (
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 p-4">
-          <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-          <p className="text-gray-600 mt-2">No hay partidos programados</p>
-        </div>
-      );
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -497,7 +492,7 @@ const TableView = () => {
               key={stage.value}
               onClick={() => handleStageChange({ target: { value: stage.value } })}
               disabled={updating}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 min-w-[200px]
+              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 min-w-[150px]
                 ${selectedStage === stage.value 
                   ? 'bg-blue-500 text-white shadow-md' 
                   : 'text-gray-600 hover:bg-gray-100'}`}
@@ -514,7 +509,9 @@ const TableView = () => {
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       ) : (
-        renderTables()
+        <div className="space-y-8 w-full">
+          {renderTables()}
+        </div>
       )}
     </div>
   );

@@ -45,13 +45,17 @@ export const updateGroupStats = async (match) => {
   }
 };
 
-export const getGroupStats = async (groupName) => {
+export const getGroupStats = async (groupName, signal) => {
   try {
-    const records = await pb.collection(groupName).getFullList({
-      expand: 'team'
+    // Crear una nueva instancia de PocketBase para esta petición específica
+    const records = await pb.collection(groupName).getList(1, 50, {
+      expand: 'team',
+      $cancelKey: groupName, // Usar un cancelKey único para cada petición
+      requestKey: groupName, // Identificador único para la petición
     });
 
-    return records.map(record => {
+    // Transformar los registros para incluir la información del equipo y calcular estadísticas
+    return records.items.map(record => {
       const team = record.expand?.team;
       if (!team) return null;
 
@@ -70,10 +74,18 @@ export const getGroupStats = async (groupName) => {
         goalDifference: record.scored_goals - record.conceived_goals,
         points: (record.won_matches * 3) + record.drawn_matches
       };
-    }).filter(Boolean);
+    }).filter(Boolean).sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+      return a.goalsAgainst - b.goalsAgainst;
+    });
   } catch (error) {
-    console.error(`Error getting ${groupName} stats:`, error);
-    return [];
+    // Solo registrar errores que no sean de cancelación
+    if (!error.isAbort && !error.message?.includes('cancelled')) {
+      console.error(`Error getting ${groupName} stats:`, error);
+    }
+    throw error;
   }
 };
 

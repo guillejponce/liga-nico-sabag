@@ -1,12 +1,9 @@
 import React, { useMemo } from 'react';
 import { useTable, useSortBy } from 'react-table';
-import { FaSort, FaSortUp, FaSortDown, FaUsers, FaTrophy, FaMedal } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { FaUsers } from 'react-icons/fa';
 import { useTeams } from '../hooks/teams/useTeams';
 import {
-  calculateTeamStats,
   updateTeamStatistics,
-  getParticipatingTeams,
   getTeamsByPhase,
   getPhasesByStage
 } from '../utils/teamsUtils';
@@ -17,99 +14,6 @@ import { pb } from '../config';
 const stages = [
   { value: 'group_phase', label: 'Fase de Grupos 1', icon: FaUsers },
   { value: 'playoffs', label: 'Fase de Grupos 2', icon: FaUsers }
-];
-
-const columns = [
-  {
-    Header: '#',
-    accessor: (row, i) => i + 1,
-    Cell: ({ value }) => (
-      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 font-bold text-blue-800 shadow-sm">
-        {value}
-      </div>
-    ),
-    width: 50,
-  },
-  {
-    Header: '',
-    accessor: 'logo',
-    Cell: ({ value }) => (
-      <div className="w-12 h-12 p-1 bg-white rounded-full shadow-sm">
-        <img 
-          src={value} 
-          alt="Logo del equipo" 
-          className="w-full h-full object-contain rounded-full"
-        />
-      </div>
-    ),
-    disableSortBy: true,
-  },
-  {
-    Header: 'Equipo',
-    accessor: 'name',
-    Cell: ({ value }) => (
-      <span className="font-semibold text-gray-800">{value}</span>
-    ),
-    disableSortBy: true
-  },
-  {
-    Header: 'Pts',
-    accessor: 'points',
-    Cell: ({ value }) => (
-      <div className="font-bold text-blue-800">{value}</div>
-    ),
-    disableSortBy: true
-  },
-  {
-    Header: 'PJ',
-    accessor: 'gamesPlayed',
-    Cell: ({ value }) => (
-      <span className="text-gray-600">{value}</span>
-    ),
-    disableSortBy: true
-  },
-  {
-    Header: 'PG',
-    accessor: 'won',
-    Cell: ({ value }) => (
-      <span className="text-gray-600">{value}</span>
-    ),
-    disableSortBy: true
-  },
-  {
-    Header: 'PE',
-    accessor: 'drawn',
-    Cell: ({ value }) => (
-      <span className="text-gray-600">{value}</span>
-    ),
-    disableSortBy: true
-  },
-  {
-    Header: 'PP',
-    accessor: 'lost',
-    Cell: ({ value }) => (
-      <span className="text-gray-600">{value}</span>
-    ),
-    disableSortBy: true
-  },
-  {
-    Header: 'DG',
-    accessor: 'goalDifference',
-    Cell: ({ value }) => (
-      <span className={`font-medium ${value > 0 ? 'text-green-600' : value < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-        {value > 0 ? `+${value}` : value}
-      </span>
-    ),
-    disableSortBy: true
-  },
-  {
-    Header: 'GF:GC',
-    accessor: 'goalsForAgainst',
-    Cell: ({ value }) => (
-      <span className="text-gray-600">{value}</span>
-    ),
-    disableSortBy: true
-  },
 ];
 
 const TableComponent = ({ data, title }) => {
@@ -297,12 +201,10 @@ const TableComponent = ({ data, title }) => {
 };
 
 const TableView = () => {
-  const navigate = useNavigate();
   const { teams = [], loading, error, refreshTeams } = useTeams();
   const [selectedStage, setSelectedStage] = React.useState('group_phase');
   const [selectedTab, setSelectedTab] = React.useState('group_a');
   const [updating, setUpdating] = React.useState(false);
-  const [participatingTeams, setParticipatingTeams] = React.useState([]);
   const [teamsByPhase, setTeamsByPhase] = React.useState({});
   const [groupStats, setGroupStats] = React.useState({
     group_a: [],
@@ -310,9 +212,6 @@ const TableView = () => {
     gold_group: [],
     silver_group: []
   });
-
-  // Ref para mantener el controlador de cancelación actual
-  const abortControllerRef = React.useRef(null);
 
   // Load teams by phase for the current stage
   const loadTeamsForPhases = async (phases) => {
@@ -363,10 +262,6 @@ const TableView = () => {
       pb.cancelRequest(statsMap[selectedTab]);
     };
   }, [selectedTab]);
-
-  const handleRowClick = (teamId) => {
-    navigate(`/teams/${teamId}`);
-  };
 
   const renderTable = (data, title) => {
     if (data.length > 0) {

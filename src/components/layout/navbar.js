@@ -10,6 +10,7 @@ const Navbar = () => {
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
+    document.body.classList.toggle('menu-open', !isOpen);
   };
 
   useEffect(() => {
@@ -27,6 +28,7 @@ const Navbar = () => {
     
     return () => {
       document.removeEventListener('scroll', handleScroll);
+      document.body.classList.remove('menu-open');
     };
   }, [location.pathname]);
 
@@ -45,7 +47,7 @@ const Navbar = () => {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      isTransparent && isHome ? 'bg-transparent' : 'bg-navbar shadow-lg'
+      (isTransparent && isHome && !isOpen) ? 'bg-transparent' : 'bg-navbar shadow-lg'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
@@ -55,7 +57,7 @@ const Navbar = () => {
             </Link>
             <Link to="/">
               <h1 className={`ml-3 text-lg font-semibold ${
-                isTransparent && isHome ? 'text-white' : 'text-text-light'
+                (isTransparent && isHome && !isOpen) ? 'text-white' : 'text-text-light'
               }`}>
                 Liga Nico Sabag
               </h1>
@@ -68,7 +70,7 @@ const Navbar = () => {
                   key={item.to}
                   to={item.to}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out ${
-                    isTransparent && isHome
+                    isTransparent && isHome && !isOpen
                       ? 'text-white hover:bg-white hover:bg-opacity-20 hover:text-white'
                       : 'text-text-light hover:bg-navbar-hover hover:text-white'
                   }`}
@@ -81,7 +83,11 @@ const Navbar = () => {
           <div className="md:hidden">
             <button
               onClick={toggleMenu}
-              className="inline-flex items-center justify-center p-2 rounded-md text-text-light hover:text-white hover:bg-navbar-hover focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+              className={`inline-flex items-center justify-center p-2 rounded-md ${
+                isOpen || !isTransparent || !isHome
+                  ? 'text-text-light hover:text-white'
+                  : 'text-white'
+              } hover:bg-navbar-hover focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white`}
             >
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -91,7 +97,7 @@ const Navbar = () => {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden">
+        <div className="md:hidden bg-navbar">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {navItems.map((item) => (
               <Link

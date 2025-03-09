@@ -297,6 +297,17 @@ const Home = () => {
       />
 
       <div className="container mx-auto px-4 py-8">
+        {/* Quick Access Section - Moved to top */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-semibold mb-4 text-text">Accesos Rápidos</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <Link to="/schedule" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Resultados</Link>
+            <Link to="/table" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Tabla de Posiciones</Link>
+            <Link to="/stats" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Estadísticas</Link>
+            <Link to="/teams" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Equipos</Link>
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           {/* Team of the Week Section */}
           <section className="h-full">
@@ -372,17 +383,7 @@ const Home = () => {
           </section>
         </div>
 
-        {/* Quick Access Section */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-semibold mb-4 text-text">Accesos Rápidos</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            <Link to="/table" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Tabla de Posiciones</Link>
-            <Link to="/stats" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Estadísticas</Link>
-            <Link to="/teams" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Equipos</Link>
-          </div>
-        </section>
-
-        {/* Sponsors Section - at the bottom */}
+        {/* Sponsors Section */}
         <section className="mt-16 mb-8">
           <h2 className="text-2xl font-semibold mb-6 text-center text-text">Nuestros Patrocinadores</h2>
           <div className="flex flex-wrap justify-center gap-12">

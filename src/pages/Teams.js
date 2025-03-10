@@ -1,8 +1,9 @@
 // src/components/Teams.js
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Trophy, Star } from 'lucide-react';
+import { Trophy, Star, User } from 'lucide-react';
 import { useTeams } from '../hooks/teams/useTeams';
+import { pb } from '../config';
 
 const Teams = () => {
   const { teams, loading, error } = useTeams();
@@ -26,9 +27,9 @@ const Teams = () => {
               className="bg-body-secondary rounded-lg p-6 hover:shadow-lg transition duration-300 flex flex-col"
             >
               <div className="flex items-center mb-3">
-                {team.logoUrl ? (
+                {team.logo ? (
                   <img 
-                    src={team.logoUrl} 
+                    src={pb.getFileUrl(team, team.logo)} 
                     alt={`${team.name} logo`} 
                     className="w-24 h-24 rounded-full mr-4 flex-shrink-0 object-cover scale-300" 
                   />
@@ -40,14 +41,14 @@ const Teams = () => {
               <div className="flex-grow">
                 <div className="flex items-center text-text-dark mb-2">
                   <Trophy size={18} className="mr-2" />
-                  <span>{team.won_matches} victorias</span>
+                  <span>{team.won_matches || 0} victorias</span>
                 </div>
                 <div className="flex items-center text-text-dark">
-                  <Star size={18} className="mr-2" />
-                  <span>Capitán: {team.captain}</span>
+                  <User size={18} className="mr-2" />
+                  <span>Capitán: {team.captain_name || 'No asignado'}</span>
                 </div>
               </div>
-              <div className="mt-4 text-accent font-medium">Ver detalles del equipo</div>
+              <div className="mt-4 text-accent font-medium">Ver detalles del equipo →</div>
             </Link>
           ))}
         </div>

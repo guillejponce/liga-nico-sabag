@@ -31,6 +31,7 @@ const Home = () => {
   const [nextMatches, setNextMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sponsors, setSponsors] = useState([]);
+  const [sponsorsLoading, setSponsorsLoading] = useState(true);
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
@@ -133,11 +134,16 @@ const Home = () => {
 
     const loadSponsors = async () => {
       try {
+        setSponsorsLoading(true);
         const sponsorsData = await fetchSponsors();
-        console.log('Loaded sponsors:', sponsorsData);
-        setSponsors(sponsorsData);
+        // Eliminar duplicados basados en el ID
+        const uniqueSponsors = Array.from(new Map(sponsorsData.map(s => [s.id, s])).values());
+        setSponsors(uniqueSponsors);
       } catch (error) {
         console.error('Error loading sponsors:', error);
+        setSponsors([]);
+      } finally {
+        setSponsorsLoading(false);
       }
     };
 
@@ -387,9 +393,13 @@ const Home = () => {
         <section className="mt-16 mb-8">
           <h2 className="text-2xl font-semibold mb-6 text-center text-text">Nuestros Patrocinadores</h2>
           <div className="flex flex-wrap justify-center gap-12">
-            {sponsors.map((sponsor) => {
-              console.log('Rendering sponsor:', sponsor);
-              return (
+            {sponsorsLoading ? (
+              // Loading skeleton
+              Array(3).fill(0).map((_, index) => (
+                <div key={`skeleton-${index}`} className="w-32 h-32 bg-gray-200 rounded-lg animate-pulse" />
+              ))
+            ) : sponsors.length > 0 ? (
+              sponsors.map((sponsor) => (
                 <div key={sponsor.id} className="text-center">
                   <div className="w-32 h-32 mx-auto mb-3 bg-white rounded-lg shadow-md overflow-hidden">
                     {sponsor.image ? (
@@ -398,7 +408,6 @@ const Home = () => {
                         alt={sponsor.name}
                         className="w-full h-full object-contain p-2"
                         onError={(e) => {
-                          console.error('Image load error:', e);
                           e.target.src = 'https://via.placeholder.com/128?text=' + encodeURIComponent(sponsor.name);
                         }}
                       />
@@ -410,8 +419,10 @@ const Home = () => {
                   </div>
                   <p className="text-text-dark font-medium">{sponsor.name}</p>
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              <p className="text-gray-500">No hay patrocinadores disponibles</p>
+            )}
           </div>
         </section>
       </div>

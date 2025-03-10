@@ -35,6 +35,7 @@ const Home = () => {
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [shouldAnimate, setShouldAnimate] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -212,6 +213,23 @@ const Home = () => {
 
     return () => clearInterval(interval);
   }, [sponsors.length, sponsorsLoading, isPaused]);
+
+  // Añadir efecto para verificar si necesitamos animación
+  useEffect(() => {
+    const checkOverflow = () => {
+      const container = document.getElementById('sponsors-container');
+      if (container) {
+        const shouldScroll = container.scrollWidth > container.clientWidth;
+        setShouldAnimate(shouldScroll);
+      }
+    };
+
+    // Verificar cuando los sponsors cambien o cuando la ventana cambie de tamaño
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [sponsors]);
 
   const formatTeamOfWeekPlayers = (team) => {
     if (!team) return [];
@@ -413,13 +431,36 @@ const Home = () => {
           <h2 className="text-2xl font-semibold mb-6 text-center text-text">Nuestros Patrocinadores</h2>
           <div className="relative">
             <div className="overflow-hidden">
+              {/* Grid para pantallas grandes */}
+              <div className="hidden md:grid md:grid-cols-4 lg:grid-cols-6 gap-4 py-4 justify-items-center">
+                {!sponsorsLoading && sponsors.length > 0 && sponsors.map((sponsor) => (
+                  <div key={sponsor.id} className="text-center">
+                    <div className="w-32 h-32 mx-auto mb-3 bg-white rounded-lg shadow-md overflow-hidden">
+                      {sponsor.image ? (
+                        <img
+                          src={pb.getFileUrl(sponsor, sponsor.image)}
+                          alt={sponsor.name}
+                          className="w-full h-full object-contain p-2"
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/128?text=' + encodeURIComponent(sponsor.name);
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                          {sponsor.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-text-dark font-medium">{sponsor.name}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Carousel para pantallas pequeñas */}
               <div 
                 id="sponsors-container"
-                className={`flex gap-4 py-4 ${sponsors.length > 2 ? 'animate-scroll' : ''} ${isPaused ? 'pause-animation' : ''}`}
-                onMouseEnter={() => setIsPaused(true)}
-                onMouseLeave={() => setIsPaused(false)}
+                className="md:hidden flex gap-4 py-4"
               >
-                {/* Duplicamos los sponsors para crear un efecto infinito */}
                 {sponsorsLoading ? (
                   // Loading skeleton
                   Array(3).fill(0).map((_, index) => (
@@ -468,15 +509,15 @@ const Home = () => {
             transform: translateX(0);
           }
           100% {
-            transform: translateX(-150%);
+            transform: translateX(-220%);
           }
         }
 
-        .animate-scroll {
+        #sponsors-container {
           animation: scroll 20s linear infinite;
         }
 
-        .pause-animation {
+        #sponsors-container:hover {
           animation-play-state: paused;
         }
       `}</style>

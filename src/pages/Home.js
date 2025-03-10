@@ -34,6 +34,7 @@ const Home = () => {
   const [sponsorsLoading, setSponsorsLoading] = useState(true);
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -193,6 +194,24 @@ const Home = () => {
 
     return () => clearInterval(interval);
   }, [banners.length]);
+
+  // Auto-scroll para sponsors
+  useEffect(() => {
+    if (sponsors.length <= 2 || sponsorsLoading || isPaused) return;
+
+    const interval = setInterval(() => {
+      const container = document.getElementById('sponsors-container');
+      if (container) {
+        if (container.scrollLeft >= (container.scrollWidth - container.clientWidth)) {
+          container.scrollLeft = 0;
+        } else {
+          container.scrollLeft += 200;
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [sponsors.length, sponsorsLoading, isPaused]);
 
   const formatTeamOfWeekPlayers = (team) => {
     if (!team) return [];
@@ -392,40 +411,75 @@ const Home = () => {
         {/* Sponsors Section */}
         <section className="mt-16 mb-8">
           <h2 className="text-2xl font-semibold mb-6 text-center text-text">Nuestros Patrocinadores</h2>
-          <div className="flex flex-wrap justify-center gap-12">
-            {sponsorsLoading ? (
-              // Loading skeleton
-              Array(3).fill(0).map((_, index) => (
-                <div key={`skeleton-${index}`} className="w-32 h-32 bg-gray-200 rounded-lg animate-pulse" />
-              ))
-            ) : sponsors.length > 0 ? (
-              sponsors.map((sponsor) => (
-                <div key={sponsor.id} className="text-center">
-                  <div className="w-32 h-32 mx-auto mb-3 bg-white rounded-lg shadow-md overflow-hidden">
-                    {sponsor.image ? (
-                      <img
-                        src={pb.getFileUrl(sponsor, sponsor.image)}
-                        alt={sponsor.name}
-                        className="w-full h-full object-contain p-2"
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/128?text=' + encodeURIComponent(sponsor.name);
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
-                        {sponsor.name.charAt(0)}
+          <div className="relative">
+            <div className="overflow-hidden">
+              <div 
+                id="sponsors-container"
+                className={`flex gap-4 py-4 ${sponsors.length > 2 ? 'animate-scroll' : ''} ${isPaused ? 'pause-animation' : ''}`}
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
+              >
+                {/* Duplicamos los sponsors para crear un efecto infinito */}
+                {sponsorsLoading ? (
+                  // Loading skeleton
+                  Array(3).fill(0).map((_, index) => (
+                    <div key={`skeleton-${index}`} className="flex-shrink-0 w-32 h-32 bg-gray-200 rounded-lg animate-pulse" />
+                  ))
+                ) : sponsors.length > 0 ? (
+                  <>
+                    {[...sponsors, ...sponsors].map((sponsor, index) => (
+                      <div key={`${sponsor.id}-${index}`} className="flex-shrink-0 text-center">
+                        <div className="w-32 h-32 mx-auto mb-3 bg-white rounded-lg shadow-md overflow-hidden">
+                          {sponsor.image ? (
+                            <img
+                              src={pb.getFileUrl(sponsor, sponsor.image)}
+                              alt={sponsor.name}
+                              className="w-full h-full object-contain p-2"
+                              onError={(e) => {
+                                e.target.src = 'https://via.placeholder.com/128?text=' + encodeURIComponent(sponsor.name);
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                              {sponsor.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-text-dark font-medium">{sponsor.name}</p>
                       </div>
-                    )}
-                  </div>
-                  <p className="text-text-dark font-medium">{sponsor.name}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500">No hay patrocinadores disponibles</p>
-            )}
+                    ))}
+                  </>
+                ) : (
+                  <p className="text-gray-500">No hay patrocinadores disponibles</p>
+                )}
+              </div>
+            </div>
           </div>
         </section>
       </div>
+
+      <style jsx>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+
+        @keyframes scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-150%);
+          }
+        }
+
+        .animate-scroll {
+          animation: scroll 20s linear infinite;
+        }
+
+        .pause-animation {
+          animation-play-state: paused;
+        }
+      `}</style>
     </div>
   );
 };

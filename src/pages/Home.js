@@ -468,7 +468,7 @@ const Home = () => {
             transform: translateX(0);
           }
           100% {
-            transform: translateX(-150%);
+            transform: translateX(-200%);
           }
         }
 

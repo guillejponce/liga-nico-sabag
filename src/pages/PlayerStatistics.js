@@ -260,51 +260,51 @@ const PlayerStatistics = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Estadísticas de Jugadores</h1>
         
         <div className="bg-white rounded-lg shadow mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-4 px-4" aria-label="Tabs">
+          <div className="border-b border-gray-200 overflow-x-auto">
+            <nav className="flex flex-nowrap min-w-full px-4" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab(TABS.GOALS)}
-                className={`px-3 py-4 text-sm font-medium border-b-2 ${
+                className={`shrink-0 px-3 py-4 text-sm font-medium border-b-2 ${
                   activeTab === TABS.GOALS
                     ? 'border-green-500 text-green-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 <Goal className="w-5 h-5 inline-block mr-2" />
-                Goleadores
+                <span className="whitespace-nowrap">Goleadores</span>
               </button>
               <button
                 onClick={() => setActiveTab(TABS.YELLOW_CARDS)}
-                className={`px-3 py-4 text-sm font-medium border-b-2 ${
+                className={`shrink-0 px-3 py-4 text-sm font-medium border-b-2 ${
                   activeTab === TABS.YELLOW_CARDS
                     ? 'border-yellow-500 text-yellow-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 <AlertTriangle className="w-5 h-5 inline-block mr-2" />
-                Tarjetas Amarillas
+                <span className="whitespace-nowrap">Tarjetas Amarillas</span>
               </button>
               <button
                 onClick={() => setActiveTab(TABS.RED_CARDS)}
-                className={`px-3 py-4 text-sm font-medium border-b-2 ${
+                className={`shrink-0 px-3 py-4 text-sm font-medium border-b-2 ${
                   activeTab === TABS.RED_CARDS
                     ? 'border-red-500 text-red-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 <AlertTriangle className="w-5 h-5 inline-block mr-2" />
-                Tarjetas Rojas
+                <span className="whitespace-nowrap">Tarjetas Rojas</span>
               </button>
               <button
                 onClick={() => setActiveTab(TABS.TEAM_OF_WEEK)}
-                className={`px-3 py-4 text-sm font-medium border-b-2 ${
+                className={`shrink-0 px-3 py-4 text-sm font-medium border-b-2 ${
                   activeTab === TABS.TEAM_OF_WEEK
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 <Users className="w-5 h-5 inline-block mr-2" />
-                Equipo de la Semana
+                <span className="whitespace-nowrap">Equipo de la Semana</span>
               </button>
             </nav>
           </div>

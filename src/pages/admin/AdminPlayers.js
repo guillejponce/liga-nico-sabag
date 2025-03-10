@@ -183,7 +183,7 @@ const AdminPlayers = () => {
             <tr key={player.id}>
               <td className="py-2 px-4 border-b">{`${player.first_name} ${player.last_name}`}</td>
               <td className="py-2 px-4 border-b">{player.rut}</td>
-              <td className="py-2 px-4 border-b">{teams[player.team] || 'Unknown Team'}</td>
+              <td className="py-2 px-4 border-b">{teams[player.team] || allTeams[player.team] || 'Unknown Team'}</td>
               <td className="py-2 px-4 border-b">{player.email}</td>
               <td className="py-2 px-4 border-b">{player.scored_goals}</td>
               <td className="py-2 px-4 border-b">{player.yellow_cards}</td>
@@ -301,89 +301,125 @@ const PlayerModal = ({ player, teams, onClose, onSave }) => {
           {player ? 'Edit Player' : 'Add New Player'}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            name="rut"
-            value={formData.rut}
-            onChange={handleChange}
-            placeholder="RUT"
-            className={`w-full px-3 py-2 border rounded ${formErrors.rut ? 'border-red-500' : ''}`}
-            required
-          />
-          {formErrors.rut && <p className="text-red-500 text-sm">{formErrors.rut}</p>}
-          <select
-            name="team"
-            value={formData.team}
-            onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded ${formErrors.team ? 'border-red-500' : ''}`}
-            required
-          >
-            <option value="">Select Team</option>
-            {Object.entries(teams).map(([id, name]) => (
-              <option key={id} value={id}>{name}</option>
-            ))}
-          </select>
-          {formErrors.team && <p className="text-red-500 text-sm">{formErrors.team}</p>}
-          <input
-            type="text"
-            name="first_name"
-            value={formData.first_name}
-            onChange={handleChange}
-            placeholder="First Name"
-            className={`w-full px-3 py-2 border rounded ${formErrors.first_name ? 'border-red-500' : ''}`}
-            required
-          />
-          {formErrors.first_name && <p className="text-red-500 text-sm">{formErrors.first_name}</p>}
-          <input
-            type="text"
-            name="last_name"
-            value={formData.last_name}
-            onChange={handleChange}
-            placeholder="Last Name"
-            className={`w-full px-3 py-2 border rounded ${formErrors.last_name ? 'border-red-500' : ''}`}
-            required
-          />
-          {formErrors.last_name && <p className="text-red-500 text-sm">{formErrors.last_name}</p>}
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Email"
-            className="w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="number"
-            name="scored_goals"
-            value={formData.scored_goals}
-            onChange={handleChange}
-            placeholder="Scored Goals"
-            className="w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="number"
-            name="yellow_cards"
-            value={formData.yellow_cards}
-            onChange={handleChange}
-            placeholder="Yellow Cards"
-            className="w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="number"
-            name="red_cards"
-            value={formData.red_cards}
-            onChange={handleChange}
-            placeholder="Red Cards"
-            className="w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="number"
-            name="man_of_the_match"
-            value={formData.man_of_the_match}
-            onChange={handleChange}
-            placeholder="Player of the Match"
-            className="w-full px-3 py-2 border rounded"
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">RUT</label>
+            <input
+              type="text"
+              name="rut"
+              value={formData.rut}
+              onChange={handleChange}
+              placeholder="RUT"
+              className={`w-full px-3 py-2 border rounded ${formErrors.rut ? 'border-red-500' : ''}`}
+              required
+            />
+            {formErrors.rut && <p className="text-red-500 text-sm">{formErrors.rut}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Team</label>
+            <select
+              name="team"
+              value={formData.team}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded ${formErrors.team ? 'border-red-500' : ''}`}
+              required
+            >
+              <option value="">Select Team</option>
+              {Object.entries(teams).map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
+            {formErrors.team && <p className="text-red-500 text-sm">{formErrors.team}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+            <input
+              type="text"
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
+              placeholder="First Name"
+              className={`w-full px-3 py-2 border rounded ${formErrors.first_name ? 'border-red-500' : ''}`}
+              required
+            />
+            {formErrors.first_name && <p className="text-red-500 text-sm">{formErrors.first_name}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <input
+              type="text"
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
+              placeholder="Last Name"
+              className={`w-full px-3 py-2 border rounded ${formErrors.last_name ? 'border-red-500' : ''}`}
+              required
+            />
+            {formErrors.last_name && <p className="text-red-500 text-sm">{formErrors.last_name}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="Email"
+              className="w-full px-3 py-2 border rounded"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Goals Scored</label>
+            <input
+              type="number"
+              name="scored_goals"
+              value={formData.scored_goals}
+              onChange={handleChange}
+              min="0"
+              className="w-full px-3 py-2 border rounded"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Yellow Cards</label>
+            <input
+              type="number"
+              name="yellow_cards"
+              value={formData.yellow_cards}
+              onChange={handleChange}
+              min="0"
+              className="w-full px-3 py-2 border rounded"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Red Cards</label>
+            <input
+              type="number"
+              name="red_cards"
+              value={formData.red_cards}
+              onChange={handleChange}
+              min="0"
+              className="w-full px-3 py-2 border rounded"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Player of the Match Awards</label>
+            <input
+              type="number"
+              name="man_of_the_match"
+              value={formData.man_of_the_match}
+              onChange={handleChange}
+              min="0"
+              className="w-full px-3 py-2 border rounded"
+            />
+          </div>
+
           <div className="flex justify-end">
             <button
               type="button"

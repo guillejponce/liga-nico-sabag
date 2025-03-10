@@ -28,7 +28,21 @@ export const fetchPlayers = async (searchFilter = '', teamFilter = '', signal) =
       signal,
     });
 
-    return { players: resultList.items, teams: {} };
+    // Transform the response to include expanded team data
+    const players = resultList.items.map(player => ({
+      ...player,
+      team: player.expand?.team?.id || player.team
+    }));
+
+    // Create a map of team IDs to team names
+    const teams = resultList.items.reduce((acc, player) => {
+      if (player.expand?.team) {
+        acc[player.expand.team.id] = player.expand.team.name;
+      }
+      return acc;
+    }, {});
+
+    return { players, teams };
   } catch (err) {
     if (err.message?.includes('autocancelled')) {
       return { players: [], teams: {} };

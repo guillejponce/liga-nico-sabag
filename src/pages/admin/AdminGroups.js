@@ -58,7 +58,7 @@ const GroupSection = ({ title, teams, groupTeams, onAssign, group, isLoading }) 
               <span>{team.name}</span>
             </div>
             <button
-              onClick={() => onAssign(team.id, null)}
+              onClick={() => onAssign(team.id, group, true)}
               disabled={isLoading}
               className="text-red-500 hover:text-red-600 text-sm disabled:text-gray-400"
             >
@@ -127,36 +127,40 @@ const AdminGroups = () => {
     }
   };
 
-  const handleTeamAssignment = async (teamId, group) => {
+  const handleTeamAssignment = async (teamId, group, isRemoving = false) => {
     // Set loading state for the specific group
     setLoadingGroups(prev => ({
       ...prev,
-      [group || 'A']: true
+      [group]: true
     }));
 
     try {
-      // If group is null, we're removing the team from a specific group
-      if (group === null) {
-        // Find which group's remove button was clicked by checking the teams arrays
+      // If isRemoving is true, we're removing the team from the specified group
+      if (isRemoving) {
         let collectionToRemoveFrom;
-        if (groupATeams.some(team => team.id === teamId)) {
-          collectionToRemoveFrom = 'group_a_stats';
-        } else if (groupBTeams.some(team => team.id === teamId)) {
-          collectionToRemoveFrom = 'group_b_stats';
-        } else if (goldGroupTeams.some(team => team.id === teamId)) {
-          collectionToRemoveFrom = 'gold_group_stats';
-        } else if (silverGroupTeams.some(team => team.id === teamId)) {
-          collectionToRemoveFrom = 'silver_group_stats';
+        switch (group) {
+          case 'A':
+            collectionToRemoveFrom = 'group_a_stats';
+            break;
+          case 'B':
+            collectionToRemoveFrom = 'group_b_stats';
+            break;
+          case 'GOLD':
+            collectionToRemoveFrom = 'gold_group_stats';
+            break;
+          case 'SILVER':
+            collectionToRemoveFrom = 'silver_group_stats';
+            break;
+          default:
+            throw new Error('Invalid group');
         }
 
-        if (collectionToRemoveFrom) {
-          const records = await pb.collection(collectionToRemoveFrom).getFullList({
-            filter: `team = "${teamId}"`
-          });
-          
-          for (const record of records) {
-            await pb.collection(collectionToRemoveFrom).delete(record.id);
-          }
+        const records = await pb.collection(collectionToRemoveFrom).getFullList({
+          filter: `team = "${teamId}"`
+        });
+        
+        for (const record of records) {
+          await pb.collection(collectionToRemoveFrom).delete(record.id);
         }
       } else {
         // Adding team to a group - create initial stats record
@@ -188,21 +192,26 @@ const AdminGroups = () => {
             throw new Error('Invalid group');
         }
 
-        // Add team to new group without removing from other groups
-        await pb.collection(targetCollection).create(initialStats);
+        // Check if team already exists in the target group
+        const existingRecords = await pb.collection(targetCollection).getFullList({
+          filter: `team = "${teamId}"`
+        });
+
+        // Only add if team is not already in the group
+        if (existingRecords.length === 0) {
+          await pb.collection(targetCollection).create(initialStats);
+        }
       }
 
       // Reload only the affected groups
       await loadGroupAssignments();
-      // Refresh teams list
-      await refreshTeams();
     } catch (error) {
       console.error('Error assigning team to group:', error);
     } finally {
       // Clear loading state for the specific group
       setLoadingGroups(prev => ({
         ...prev,
-        [group || 'A']: false
+        [group]: false
       }));
     }
   };

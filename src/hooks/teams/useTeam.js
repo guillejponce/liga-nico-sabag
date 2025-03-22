@@ -10,7 +10,9 @@ export function useTeam(teamId) {
     async function fetchTeam() {
       try {
         setLoading(true);
-        const record = await pb.collection('teams').getOne(teamId);
+        const record = await pb.collection('teams').getOne(teamId, {
+          expand: 'captain_id'
+        });
         
         // Process the record to include the logo URL
         const processedTeam = {

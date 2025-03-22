@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useTeam } from '../hooks/teams/useTeam';
 import { useTeamPlayers } from '../hooks/players/useTeamPlayers';
-import { Trophy, EqualIcon, Frown, Goal, ShieldAlert, Award, Users, Star, TrendingUp, Activity, Image as ImageIcon } from 'lucide-react';
+import { Trophy, Goal, ShieldAlert, Users, Star, TrendingUp, Image as ImageIcon } from 'lucide-react';
 import {
   Card,
   Title,
@@ -40,6 +40,11 @@ const TeamView = () => {
 
   const totalMatches = team.won_matches + team.drawn_matches + team.lost_matches;
   const winRate = (team.won_matches / totalMatches) * 100;
+
+  // Get captain name from expanded relation
+  const captainName = team.expand?.captain_id ? 
+    `${team.expand.captain_id.first_name} ${team.expand.captain_id.last_name}` : 
+    'No asignado';
 
   // Custom colors that match your theme
   const chartColors = {
@@ -84,7 +89,7 @@ const TeamView = () => {
               <Title className="text-text text-2xl sm:text-3xl">{team.name}</Title>
               <div className="flex items-center justify-center space-x-2">
                 <Star className="w-5 h-5 text-accent" />
-                <Text className="text-text-dark">Capitán: {team.captain}</Text>
+                <Text className="text-text-dark">Capitán: {captainName}</Text>
               </div>
               <Text className="text-text-dark italic text-sm sm:text-base max-w-lg mx-auto">
                 {team.description}

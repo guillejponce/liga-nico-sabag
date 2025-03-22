@@ -31,7 +31,11 @@ const AdminTeams = () => {
 
   const loadPlayers = useCallback(async () => {
     try {
-      const fetchedPlayers = await fetchAllPlayers();
+      const fetchedPlayers = await pb.collection('players').getFullList({
+        sort: 'last_name,first_name',
+        expand: 'team'
+      });
+      console.log('Fetched players:', fetchedPlayers);
       setPlayers(fetchedPlayers);
     } catch (err) {
       console.error('Error loading players:', err);
@@ -213,6 +217,15 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
   const [formErrors, setFormErrors] = useState({});
   const [logoPreview, setLogoPreview] = useState(team?.logo ? pb.getFileUrl(team, team.logo) : null);
 
+  // Filter players by team when editing
+  const availablePlayers = team 
+    ? players.filter(player => player.expand?.team?.id === team.id)
+    : players;
+
+  console.log('Team:', team);
+  console.log('Available players:', availablePlayers);
+  console.log('All players:', players);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -238,7 +251,6 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      // When saving, we'll only send the necessary fields
       const dataToSave = {
         name: formData.name,
         description: formData.description,
@@ -246,7 +258,6 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
         instagram_url: formData.instagram_url,
       };
       
-      // Only include logo if it was changed/added
       if (formData.logo) {
         dataToSave.logo = formData.logo;
       }
@@ -312,19 +323,24 @@ const TeamModal = ({ team, players, onClose, onSave }) => {
           />
           {formErrors.description && <p className="text-red-500 text-sm">{formErrors.description}</p>}
           
-          <select
-            name="captain_id"
-            value={formData.captain_id}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border rounded"
-          >
-            <option value="">Select Captain</option>
-            {players.map((player) => (
-              <option key={player.id} value={player.id}>
-                {player.first_name} {player.last_name}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              name="captain_id"
+              value={formData.captain_id}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded appearance-none"
+            >
+              <option value="">Select Captain</option>
+              {availablePlayers.map((player) => (
+                <option key={player.id} value={player.id}>
+                  {player.first_name} {player.last_name}
+                </option>
+              ))}
+            </select>
+            {team && availablePlayers.length === 0 && (
+              <p className="text-sm text-gray-500 mt-1">No players available in this team</p>
+            )}
+          </div>
           
           <input
             type="url"

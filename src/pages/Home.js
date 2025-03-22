@@ -159,7 +159,7 @@ const Home = () => {
           id: 'default',
           image: backgroundImage,
           title: 'Bienvenidos a la Liga Nico Sabag',
-          description: '📍Canchas Colegio Newland\n 🗓️Lunes (19:45 y 20:45)',
+          description: '📍Canchas Colegio Newland\n 🗓️Lunes (20:00 y 21:00)',
           is_active: true
         };
 
@@ -251,7 +251,7 @@ const Home = () => {
 
   const TeamDisplay = ({ team }) => (
     <div className="flex items-center space-x-2">
-      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100">
+      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
         {team?.logo ? (
           <img
             src={pb.getFileUrl(team, team.logo)}
@@ -264,7 +264,7 @@ const Home = () => {
           </div>
         )}
       </div>
-      <span className="font-medium">{team?.name || 'TBD'}</span>
+      <span className="font-medium text-sm sm:text-base truncate max-w-[100px] sm:max-w-[140px]">{team?.name || 'TBD'}</span>
     </div>
   );
 
@@ -286,13 +286,13 @@ const Home = () => {
       return (
         <div className="mb-3">
           <h4 className="text-gray-600 font-semibold mb-2">{title}</h4>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {displayMatches.map((match) => (
-              <div key={match.id} className={`flex items-center justify-between p-2 ${bgClass} rounded`}>
-                <div className="flex-1 flex justify-end pr-7">
+              <div key={match.id} className={`flex flex-col sm:flex-row items-center p-3 ${bgClass} rounded gap-3`}>
+                <div className="w-full sm:w-[45%] flex justify-center sm:justify-end">
                   <TeamDisplay team={match.expand?.home_team} />
                 </div>
-                <div className="flex-shrink-0 flex flex-col items-center justify-center w-20">
+                <div className="flex flex-col items-center justify-center min-w-[80px]">
                   <div className="text-xs text-gray-500 mb-1">
                     {new Date(match.date_time).toLocaleTimeString([], { 
                       hour: '2-digit', 
@@ -301,7 +301,7 @@ const Home = () => {
                   </div>
                   <span className="text-sm font-bold text-gray-400">VS</span>
                 </div>
-                <div className="flex-1 flex justify-start pl-7">
+                <div className="w-full sm:w-[45%] flex justify-center sm:justify-start">
                   <TeamDisplay team={match.expand?.away_team} />
                 </div>
               </div>
@@ -316,7 +316,7 @@ const Home = () => {
       const groupAMatches = nextMatches.filter(m => m.phase === 'group_a');
       const groupBMatches = nextMatches.filter(m => m.phase === 'group_b');
       return (
-        <div className="flex-1 space-y-4 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto max-h-[300px] sm:max-h-none">
           {groupAMatches.length > 0 && renderMatchGroup(groupAMatches, 'Grupo A', 'bg-blue-50')}
           {groupBMatches.length > 0 && renderMatchGroup(groupBMatches, 'Grupo B', 'bg-green-50')}
         </div>
@@ -325,10 +325,28 @@ const Home = () => {
 
     // Para otras fases, mostrar todos los partidos juntos
     return (
-      <div className="flex-1 space-y-4 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto max-h-[300px] sm:max-h-none">
         {renderMatchGroup(nextMatches, PHASE_LABELS[nextMatchday.phase], 'bg-gray-50')}
       </div>
     );
+  };
+
+  const formatChileDate = (dateString) => {
+    // Create a date object in Chile's timezone
+    const date = new Date(dateString);
+    // Add one day to the date
+    date.setDate(date.getDate() + 1);
+    // Adjust the date to Chile's timezone (UTC-4 or UTC-3)
+    const chileDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    
+    // Format the date in Spanish
+    return chileDate.toLocaleDateString('es-CL', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Santiago'
+    }).replace(/^\w/, c => c.toUpperCase());
   };
 
   return (
@@ -405,7 +423,7 @@ const Home = () => {
                     <h3 className="text-lg font-semibold">Jornada {nextMatchday.number}</h3>
                     <div className="flex items-center text-sm">
                       <Calendar className="w-4 h-4 mr-2" />
-                      {new Date(nextMatchday.date_time).toLocaleDateString()}
+                      {formatChileDate(nextMatchday.date_time)}
                     </div>
                   </div>
                 </div>

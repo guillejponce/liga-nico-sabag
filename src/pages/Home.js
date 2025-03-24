@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
+import { useSwipeable } from 'react-swipeable';
 import { pb } from '../config';
 import { fetchMatchdays } from '../hooks/admin/matchdayHandlers';
 import { fetchLatestTeamOfTheWeek } from '../hooks/admin/teamOfTheWeekHandlers';
@@ -34,8 +35,9 @@ const Home = () => {
   const [sponsorsLoading, setSponsorsLoading] = useState(true);
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [isPaused] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [matchesPerSlide] = useState(3);
 
   useEffect(() => {
     const loadData = async () => {
@@ -214,22 +216,26 @@ const Home = () => {
     return () => clearInterval(interval);
   }, [sponsors.length, sponsorsLoading, isPaused]);
 
-  // Añadir efecto para verificar si necesitamos animación
-  useEffect(() => {
-    const checkOverflow = () => {
-      const container = document.getElementById('sponsors-container');
-      if (container) {
-        const shouldScroll = container.scrollWidth > container.clientWidth;
-        setShouldAnimate(shouldScroll);
-      }
-    };
+  const handleSlideChange = (direction) => {
+    const groupAMatches = nextMatches.filter(m => m.phase === 'group_a');
+    const groupBMatches = nextMatches.filter(m => m.phase === 'group_b');
+    const totalSlidesA = Math.ceil(groupAMatches.length / matchesPerSlide);
+    const totalSlidesB = Math.ceil(groupBMatches.length / matchesPerSlide);
+    const totalSlides = totalSlidesA + totalSlidesB;
 
-    // Verificar cuando los sponsors cambien o cuando la ventana cambie de tamaño
-    checkOverflow();
-    window.addEventListener('resize', checkOverflow);
+    if (direction === 'next') {
+      setCurrentSlide(prev => (prev + 1) % totalSlides);
+    } else {
+      setCurrentSlide(prev => (prev - 1 + totalSlides) % totalSlides);
+    }
+  };
 
-    return () => window.removeEventListener('resize', checkOverflow);
-  }, [sponsors]);
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => handleSlideChange('next'),
+    onSwipedRight: () => handleSlideChange('prev'),
+    preventDefaultTouchmoveEvent: true,
+    trackMouse: true
+  });
 
   const formatTeamOfWeekPlayers = (team) => {
     if (!team) return [];
@@ -268,6 +274,40 @@ const Home = () => {
     </div>
   );
 
+  const renderMatchGroup = (matches, title, bgClass = 'bg-gray-50', slideIndex) => {
+    if (!matches || matches.length === 0) return null;
+    
+    const startIndex = slideIndex * matchesPerSlide;
+    const visibleMatches = matches.slice(startIndex, startIndex + matchesPerSlide);
+    
+    return (
+      <div className="mb-3">
+        <h4 className="text-gray-600 font-semibold mb-2">{title}</h4>
+        <div className="space-y-3">
+          {visibleMatches.map((match) => (
+            <div key={match.id} className={`flex flex-col sm:flex-row items-center p-3 ${bgClass} rounded gap-3`}>
+              <div className="w-full sm:w-[45%] flex justify-center sm:justify-end">
+                <TeamDisplay team={match.expand?.home_team} />
+              </div>
+              <div className="flex flex-col items-center justify-center min-w-[80px]">
+                <div className="text-xs text-gray-500 mb-1">
+                  {new Date(match.date_time).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </div>
+                <span className="text-sm font-bold text-gray-400">VS</span>
+              </div>
+              <div className="w-full sm:w-[45%] flex justify-center sm:justify-start">
+                <TeamDisplay team={match.expand?.away_team} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const nextMatchesDisplay = () => {
     if (!nextMatchday || !nextMatches.length) {
       return (
@@ -277,56 +317,36 @@ const Home = () => {
       );
     }
 
-    const renderMatchGroup = (matches, title, bgClass = 'bg-gray-50') => {
-      if (!matches || matches.length === 0) return null;
-      
-      // Tomar solo los primeros 2 partidos
-      const displayMatches = matches.slice(0, 2);
-      
-      return (
-        <div className="mb-3">
-          <h4 className="text-gray-600 font-semibold mb-2">{title}</h4>
-          <div className="space-y-3">
-            {displayMatches.map((match) => (
-              <div key={match.id} className={`flex flex-col sm:flex-row items-center p-3 ${bgClass} rounded gap-3`}>
-                <div className="w-full sm:w-[45%] flex justify-center sm:justify-end">
-                  <TeamDisplay team={match.expand?.home_team} />
-                </div>
-                <div className="flex flex-col items-center justify-center min-w-[80px]">
-                  <div className="text-xs text-gray-500 mb-1">
-                    {new Date(match.date_time).toLocaleTimeString([], { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                  </div>
-                  <span className="text-sm font-bold text-gray-400">VS</span>
-                </div>
-                <div className="w-full sm:w-[45%] flex justify-center sm:justify-start">
-                  <TeamDisplay team={match.expand?.away_team} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    };
-
     // Mostrar los partidos según la fase actual
     if (nextMatchday.phase.includes('group_')) {
       const groupAMatches = nextMatches.filter(m => m.phase === 'group_a');
       const groupBMatches = nextMatches.filter(m => m.phase === 'group_b');
+      
+      const totalSlidesA = Math.ceil(groupAMatches.length / matchesPerSlide);
+      const totalSlidesB = Math.ceil(groupBMatches.length / matchesPerSlide);
+      
+      // Determinar qué grupo mostrar basado en el slide actual
+      const isGroupA = currentSlide < totalSlidesA;
+      
       return (
-        <div className="flex-1 overflow-y-auto max-h-[300px] sm:max-h-none">
-          {groupAMatches.length > 0 && renderMatchGroup(groupAMatches, 'Grupo A', 'bg-blue-50')}
-          {groupBMatches.length > 0 && renderMatchGroup(groupBMatches, 'Grupo B', 'bg-green-50')}
+        <div className="flex-1 flex flex-col" {...swipeHandlers}>
+          <div className="transition-all duration-500 ease-in-out">
+            {isGroupA ? (
+              renderMatchGroup(groupAMatches, 'Grupo A', 'bg-blue-50', currentSlide)
+            ) : (
+              renderMatchGroup(groupBMatches, 'Grupo B', 'bg-green-50', currentSlide - totalSlidesA)
+            )}
+          </div>
         </div>
       );
     }
 
     // Para otras fases, mostrar todos los partidos juntos
     return (
-      <div className="flex-1 overflow-y-auto max-h-[300px] sm:max-h-none">
-        {renderMatchGroup(nextMatches, PHASE_LABELS[nextMatchday.phase], 'bg-gray-50')}
+      <div className="flex-1 flex flex-col" {...swipeHandlers}>
+        <div className="transition-all duration-500 ease-in-out">
+          {renderMatchGroup(nextMatches, PHASE_LABELS[nextMatchday.phase], 'bg-gray-50', currentSlide)}
+        </div>
       </div>
     );
   };
@@ -427,13 +447,78 @@ const Home = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex-1 p-3 flex flex-col">
-                  {nextMatchesDisplay()}
-                  <div className="pt-3 mt-3 border-t text-right">
-                    <Link to="/schedule" className="text-accent hover:text-accent-dark text-sm font-medium">
-                      Ver calendario completo →
-                    </Link>
+                <div className="flex flex-col h-full">
+                  <div className="p-3 border-b">
+                    {nextMatchday.phase.includes('group_') ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setCurrentSlide(0)}
+                            className={`px-3 py-1.5 text-sm rounded-md transition-all duration-300 ${
+                              currentSlide < Math.ceil(nextMatches.filter(m => m.phase === 'group_a').length / matchesPerSlide)
+                                ? 'bg-blue-600 text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            Grupo A
+                          </button>
+                          <button
+                            onClick={() => setCurrentSlide(Math.ceil(nextMatches.filter(m => m.phase === 'group_a').length / matchesPerSlide))}
+                            className={`px-3 py-1.5 text-sm rounded-md transition-all duration-300 ${
+                              currentSlide >= Math.ceil(nextMatches.filter(m => m.phase === 'group_a').length / matchesPerSlide)
+                                ? 'bg-green-600 text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            Grupo B
+                          </button>
+                        </div>
+                        <Link 
+                          to="/schedule" 
+                          className="text-sm text-accent hover:text-accent-dark transition-colors duration-300 flex items-center gap-1"
+                        >
+                          Ver calendario completo
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="flex justify-end">
+                        <Link 
+                          to="/schedule" 
+                          className="text-sm text-accent hover:text-accent-dark transition-colors duration-300 flex items-center gap-1"
+                        >
+                          Ver calendario completo
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </div>
+                    )}
                   </div>
+                  <div className="flex-1 overflow-auto">
+                    <div className="p-3">
+                      {nextMatchesDisplay()}
+                    </div>
+                  </div>
+                  {nextMatchday.phase.includes('group_') && (
+                    <div className="p-3 border-t">
+                      <div className="flex justify-center gap-1.5">
+                        {Array.from({ 
+                          length: Math.ceil(nextMatches.length / matchesPerSlide)
+                        }).map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentSlide(index)}
+                            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                              currentSlide === index ? 'bg-green-600 w-3' : 'bg-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

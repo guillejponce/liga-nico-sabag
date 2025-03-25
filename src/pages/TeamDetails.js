@@ -156,7 +156,7 @@ const TeamView = () => {
                       <ShieldAlert className="w-8 h-8 text-orange-500 mb-2 sm:mb-0 sm:mr-3" />
                       <div>
                         <Text className="text-text-dark text-sm sm:text-base">Goles Recibidos</Text>
-                        <Metric className="text-text text-2xl sm:text-3xl">{team.concieved_goals}</Metric>
+                        <Metric className="text-text text-2xl sm:text-3xl">{team.conceived_goals}</Metric>
                       </div>
                     </Flex>
                   </Card>
@@ -205,11 +205,11 @@ const TeamView = () => {
                       </Flex>
                       <Flex className="mt-4">
                         <Text className="text-text-dark">Goles Recibidos</Text>
-                        <Text className="text-text">{team.concieved_goals}</Text>
+                        <Text className="text-text">{team.conceived_goals}</Text>
                       </Flex>
                       <Flex className="mt-4">
                         <Text className="text-text-dark">Diferencia de Goles</Text>
-                        <Text className="text-text">{team.scored_goals - team.concieved_goals}</Text>
+                        <Text className="text-text">{team.scored_goals - team.conceived_goals}</Text>
                       </Flex>
                     </div>
                   </Card>

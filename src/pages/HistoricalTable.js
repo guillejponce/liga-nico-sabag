@@ -124,7 +124,7 @@ const HistoricalTable = () => {
                     <td className="px-4 py-3 text-center text-gray-600">{stats.drawn_matches}</td>
                     <td className="px-4 py-3 text-center text-gray-600">{stats.lost_matches}</td>
                     <td className="px-4 py-3 text-center text-gray-600">{stats.scored_goals}</td>
-                    <td className="px-4 py-3 text-center text-gray-600">{stats.concieved_goals}</td>
+                    <td className="px-4 py-3 text-center text-gray-600">{stats.conceived_goals}</td>
                     <td className={`px-4 py-3 text-center font-medium ${
                       stats.goal_difference > 0 ? 'text-green-600' : 
                       stats.goal_difference < 0 ? 'text-red-600' : 

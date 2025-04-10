@@ -21,6 +21,7 @@ import PlayerStatistics from '../pages/PlayerStatistics';
 import Editions from '../pages/Editions';
 import HistoricalTable from '../pages/HistoricalTable';
 import Rules from '../pages/Rules';
+import Gallery from '../pages/Gallery';
 
 const Router = () => {
   return (
@@ -36,6 +37,7 @@ const Router = () => {
       <Route path="/editions" element={<Editions />} />
       <Route path="/historical-table" element={<HistoricalTable />} />
       <Route path="/rules" element={<Rules />} />
+      <Route path="/gallery" element={<Gallery />} />
 
       {/* Protected admin routes */}
       <Route element={<ProtectedRoute />}>

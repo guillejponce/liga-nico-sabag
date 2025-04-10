@@ -159,7 +159,7 @@ const AdminTeams = () => {
               <td className="py-2 px-4 border-b">{team.drawn_matches}</td>
               <td className="py-2 px-4 border-b">{team.lost_matches}</td>
               <td className="py-2 px-4 border-b">{team.scored_goals}</td>
-              <td className="py-2 px-4 border-b">{team.concieved_goals}</td>
+              <td className="py-2 px-4 border-b">{team.conceived_goals}</td>
               <td className="py-2 px-4 border-b">{team.instagram_url}</td>
               <td className="py-2 px-4 border-b">
                 <button

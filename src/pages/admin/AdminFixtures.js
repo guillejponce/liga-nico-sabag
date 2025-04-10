@@ -10,6 +10,7 @@ import { updatePlayerStatistics } from '../../utils/playersUtils';
 import { toast } from 'react-toastify';
 import { useTeams } from '../../hooks/teams/useTeams';
 import AdminMatchdayModal from './AdminMatchdayModal';
+import { updateGroupStats } from '../../utils/groupUtils';
 
 const phaseOptions = [
   { label: "Group A", value: "group_a" },
@@ -279,6 +280,9 @@ const AdminFixtures = () => {
       
       if (!isConfirmed) return;
 
+      // Get the matchday data to know which phase we're in
+      const matchdayData = await pb.collection('matchdays').getOne(match.matchday);
+
       // Delete all events associated with this match first
       const events = await pb.collection('events').getFullList({
         filter: `match="${match.id}"`
@@ -303,6 +307,12 @@ const AdminFixtures = () => {
       });
 
       setMatchdays(updatedMatchdays);
+
+      // If the match was finished, update group stats
+      if (match.is_finished) {
+        await updateGroupStats();
+      }
+
       toast.success('Partido eliminado correctamente');
     } catch (error) {
       console.error('Error deleting match:', error);

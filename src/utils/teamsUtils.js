@@ -33,7 +33,7 @@ export const updateTeamStatistics = async (selectedStage) => {
           lost_matches: 0,
           drawn_matches: 0,
           scored_goals: 0,
-          concieved_goals: 0,
+          conceived_goals: 0,
         };
         return pb.collection('teams').update(team.id, resetStats);
       })
@@ -65,10 +65,10 @@ export const updateTeamStatistics = async (selectedStage) => {
       const awayScore = parseInt(match.away_team_score) || 0;
 
       if (!teamUpdates[homeTeamId]) {
-        teamUpdates[homeTeamId] = { won_matches: 0, lost_matches: 0, drawn_matches: 0, scored_goals: 0, concieved_goals: 0 };
+        teamUpdates[homeTeamId] = { won_matches: 0, lost_matches: 0, drawn_matches: 0, scored_goals: 0, conceived_goals: 0 };
       }
       if (!teamUpdates[awayTeamId]) {
-        teamUpdates[awayTeamId] = { won_matches: 0, lost_matches: 0, drawn_matches: 0, scored_goals: 0, concieved_goals: 0 };
+        teamUpdates[awayTeamId] = { won_matches: 0, lost_matches: 0, drawn_matches: 0, scored_goals: 0, conceived_goals: 0 };
       }
 
       if (homeScore > awayScore) {
@@ -83,9 +83,9 @@ export const updateTeamStatistics = async (selectedStage) => {
       }
 
       teamUpdates[homeTeamId].scored_goals += homeScore;
-      teamUpdates[homeTeamId].concieved_goals += awayScore;
+      teamUpdates[homeTeamId].conceived_goals += awayScore;
       teamUpdates[awayTeamId].scored_goals += awayScore;
-      teamUpdates[awayTeamId].concieved_goals += homeScore;
+      teamUpdates[awayTeamId].conceived_goals += homeScore;
     });
 
     // 4. Update teams with the new statistics
@@ -110,15 +110,15 @@ export const calculateTeamStats = (team) => {
   const drawn = team.drawn_matches || 0;
   const lost = team.lost_matches || 0;
   const scored = team.scored_goals || 0;
-  const concieved = team.concieved_goals || 0;
+  const conceived = team.conceived_goals || 0;
   const points = (won * 3) + drawn;
-  const goalDifference = scored - concieved;
+  const goalDifference = scored - conceived;
   const gamesPlayed = won + drawn + lost;
   return {
     points,
     goalDifference,
     gamesPlayed,
-    goalsForAgainst: `${scored}:${concieved}`,
+    goalsForAgainst: `${scored}:${conceived}`,
     won,
     drawn,
     lost,

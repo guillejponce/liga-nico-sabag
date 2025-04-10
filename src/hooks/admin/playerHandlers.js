@@ -19,7 +19,7 @@ export const fetchPlayers = async (searchFilter = '', teamFilter = '', signal) =
       filter += filter ? ` && team="${teamFilter}"` : `team="${teamFilter}"`;
     }
 
-    const resultList = await pb.collection('players').getList(1, 50, {
+    const resultList = await pb.collection('players').getFullList({
       headers: getHeaders(),
       filter,
       sort: '-created',
@@ -29,13 +29,13 @@ export const fetchPlayers = async (searchFilter = '', teamFilter = '', signal) =
     });
 
     // Transform the response to include expanded team data
-    const players = resultList.items.map(player => ({
+    const players = resultList.map(player => ({
       ...player,
       team: player.expand?.team?.id || player.team
     }));
 
     // Create a map of team IDs to team names
-    const teams = resultList.items.reduce((acc, player) => {
+    const teams = resultList.reduce((acc, player) => {
       if (player.expand?.team) {
         acc[player.expand.team.id] = player.expand.team.name;
       }

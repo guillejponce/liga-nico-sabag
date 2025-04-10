@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTeam } from '../hooks/teams/useTeam';
 import { useTeamPlayers } from '../hooks/players/useTeamPlayers';
-import { Trophy, Goal, ShieldAlert, Users, Star, TrendingUp, Image as ImageIcon } from 'lucide-react';
+import { Trophy, Goal, ShieldAlert, Users, Star, TrendingUp, Image as ImageIcon, Download, X } from 'lucide-react';
+import { pb } from '../config';
+import { motion, AnimatePresence } from 'framer-motion';
+import { fetchGalleryImages } from '../hooks/admin/galleryHandlers';
 import {
   Card,
   Title,
@@ -24,15 +27,54 @@ import {
   TableCell,
   BarChart,
 } from '@tremor/react';
-import { motion } from 'framer-motion';
 
 const TeamView = () => {
   const { teamId } = useParams();
   const { team, loading: teamLoading, error: teamError } = useTeam(teamId);
   const { players, loading: playersLoading, error: playersError } = useTeamPlayers(teamId);
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [loadingImages, setLoadingImages] = useState(true);
 
-  // Assuming you'll have a hook for gallery images
-  const galleryImages = team?.gallery || [];
+  useEffect(() => {
+    const loadGalleryImages = async () => {
+      try {
+        setLoadingImages(true);
+        const images = await fetchGalleryImages();
+        // Filter images where the team appears in either team1 or team2
+        const teamImages = images.filter(image => 
+          image.expand?.team1?.id === teamId || image.expand?.team2?.id === teamId
+        );
+        setGalleryImages(teamImages);
+      } catch (error) {
+        console.error('Error loading gallery images:', error);
+      } finally {
+        setLoadingImages(false);
+      }
+    };
+
+    if (teamId) {
+      loadGalleryImages();
+    }
+  }, [teamId]);
+
+  const handleDownload = async (image) => {
+    try {
+      const url = pb.getFileUrl(image, image.image);
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `gallery-${image.id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading image:', error);
+    }
+  };
 
   if (teamLoading || playersLoading) return <div className="text-center py-8">Cargando detalles del equipo...</div>;
   if (teamError || playersError) return <div className="text-center py-8 text-red-500">Error al cargar los datos</div>;
@@ -156,7 +198,7 @@ const TeamView = () => {
                       <ShieldAlert className="w-8 h-8 text-orange-500 mb-2 sm:mb-0 sm:mr-3" />
                       <div>
                         <Text className="text-text-dark text-sm sm:text-base">Goles Recibidos</Text>
-                        <Metric className="text-text text-2xl sm:text-3xl">{team.concieved_goals}</Metric>
+                        <Metric className="text-text text-2xl sm:text-3xl">{team.conceived_goals}</Metric>
                       </div>
                     </Flex>
                   </Card>
@@ -205,11 +247,11 @@ const TeamView = () => {
                       </Flex>
                       <Flex className="mt-4">
                         <Text className="text-text-dark">Goles Recibidos</Text>
-                        <Text className="text-text">{team.concieved_goals}</Text>
+                        <Text className="text-text">{team.conceived_goals}</Text>
                       </Flex>
                       <Flex className="mt-4">
                         <Text className="text-text-dark">Diferencia de Goles</Text>
-                        <Text className="text-text">{team.scored_goals - team.concieved_goals}</Text>
+                        <Text className="text-text">{team.scored_goals - team.conceived_goals}</Text>
                       </Flex>
                     </div>
                   </Card>
@@ -329,23 +371,28 @@ const TeamView = () => {
                       <Title className="text-text text-base sm:text-lg">Galería del Equipo</Title>
                     </div>
                     
-                    {galleryImages.length > 0 ? (
+                    {loadingImages ? (
+                      <div className="flex justify-center items-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                      </div>
+                    ) : galleryImages.length > 0 ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {galleryImages.map((image, index) => (
+                        {galleryImages.map((image) => (
                           <motion.div
-                            key={index}
+                            key={image.id}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="relative aspect-square rounded-lg overflow-hidden"
+                            className="relative aspect-video rounded-lg overflow-hidden cursor-pointer"
+                            onClick={() => setSelectedImage(image)}
                           >
                             <img
-                              src={image.url}
-                              alt={`Team gallery ${index + 1}`}
+                              src={pb.getFileUrl(image, image.image)}
+                              alt={`${image.expand?.team1?.name} vs ${image.expand?.team2?.name}`}
                               className="w-full h-full object-cover"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300">
+                            <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-opacity duration-300 flex items-center justify-center">
                               <div className="absolute bottom-0 left-0 right-0 p-4">
-                                <p className="text-white text-sm">{image.description || `Foto ${index + 1}`}</p>
+                                <p className="text-white text-sm">{image.expand?.team1?.name} vs {image.expand?.team2?.name}</p>
                               </div>
                             </div>
                           </motion.div>
@@ -364,6 +411,61 @@ const TeamView = () => {
           </TabPanels>
         </TabGroup>
       </motion.div>
+
+      {/* Image Modal */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedImage(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative">
+                <img
+                  src={pb.getFileUrl(selectedImage, selectedImage.image)}
+                  alt={`${selectedImage.expand?.team1?.name} vs ${selectedImage.expand?.team2?.name}`}
+                  className="w-full max-h-[70vh] object-contain"
+                />
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute top-4 right-4 bg-white bg-opacity-75 rounded-full p-2 hover:bg-opacity-100 transition-opacity"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold">
+                      {selectedImage.expand?.team1?.name} vs {selectedImage.expand?.team2?.name}
+                    </h3>
+                    <p className="text-gray-600">
+                      Jornada {selectedImage.expand?.matchday?.number} {selectedImage.expand?.matchday?.phase ? 
+                        `(${selectedImage.expand.matchday.phase})` : ''}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDownload(selectedImage)}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                  >
+                    <Download className="w-5 h-5" />
+                    Descargar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 };

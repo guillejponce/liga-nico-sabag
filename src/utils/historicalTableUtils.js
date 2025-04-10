@@ -16,7 +16,7 @@ export const calculateHistoricalStats = async (signal) => {
         drawn_matches: 0,
         lost_matches: 0,
         scored_goals: 0,
-        concieved_goals: 0,
+        conceived_goals: 0,
         goal_difference: 0,
         matches_played: 0,
         performance: 0
@@ -42,7 +42,7 @@ export const calculateHistoricalStats = async (signal) => {
       if (historicalStats[homeTeamId]) {
         historicalStats[homeTeamId].matches_played += 1;
         historicalStats[homeTeamId].scored_goals += homeScore;
-        historicalStats[homeTeamId].concieved_goals += awayScore;
+        historicalStats[homeTeamId].conceived_goals += awayScore;
         
         if (homeScore > awayScore) {
           historicalStats[homeTeamId].won_matches += 1;
@@ -59,7 +59,7 @@ export const calculateHistoricalStats = async (signal) => {
       if (historicalStats[awayTeamId]) {
         historicalStats[awayTeamId].matches_played += 1;
         historicalStats[awayTeamId].scored_goals += awayScore;
-        historicalStats[awayTeamId].concieved_goals += homeScore;
+        historicalStats[awayTeamId].conceived_goals += homeScore;
         
         if (awayScore > homeScore) {
           historicalStats[awayTeamId].won_matches += 1;
@@ -82,7 +82,7 @@ export const calculateHistoricalStats = async (signal) => {
 
       return {
         ...stats,
-        goal_difference: stats.scored_goals - stats.concieved_goals,
+        goal_difference: stats.scored_goals - stats.conceived_goals,
         performance: performancePercentage
       };
     });

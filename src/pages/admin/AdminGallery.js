@@ -27,6 +27,7 @@ const AdminGallery = () => {
   });
   const [overallProgress, setOverallProgress] = useState(0);
   const [uploadMode, setUploadMode] = useState('matchday'); // 'matchday' or 'teams'
+  const [expandedMatch, setExpandedMatch] = useState(null);
 
   useEffect(() => {
     loadInitialData();
@@ -460,32 +461,32 @@ const AdminGallery = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {Object.entries(
           images.reduce((groups, image) => {
-            // Create a unique key for team combination only
             const matchKey = `${image.expand?.team1?.name}_${image.expand?.team2?.name}`;
             if (!groups[matchKey]) {
               groups[matchKey] = {
                 images: [],
                 team1: image.expand?.team1?.name,
                 team2: image.expand?.team2?.name,
-                preview: image, // Use the first image as preview
-                matchdays: new Set() // Track unique matchdays
+                preview: image,
+                matchdays: new Set()
               };
             }
             groups[matchKey].images.push(image);
-            // Add matchday to the set if it exists
             if (image.expand?.matchday?.number) {
               groups[matchKey].matchdays.add(image.expand.matchday.number);
             }
             return groups;
           }, {})
         ).sort((a, b) => {
-          // Sort by most recent image in the group
           const aLatest = new Date(a[1].preview.created);
           const bLatest = new Date(b[1].preview.created);
           return bLatest - aLatest;
         }).map(([matchKey, match]) => (
           <div key={matchKey} className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="aspect-video relative group">
+            <div 
+              className="aspect-video relative group cursor-pointer"
+              onClick={() => setExpandedMatch(expandedMatch === matchKey ? null : matchKey)}
+            >
               {match.preview.image ? (
                 <img
                   src={pb.getFileUrl(match.preview, match.preview.image)}
@@ -527,6 +528,40 @@ const AdminGallery = () => {
                 </button>
               </div>
             </div>
+
+            {/* Expanded view of all photos */}
+            {expandedMatch === matchKey && (
+              <div className="border-t border-gray-200 p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {match.images.map((image) => (
+                    <div key={image.id} className="relative group">
+                      <img
+                        src={pb.getFileUrl(image, image.image)}
+                        alt={`${image.expand?.team1?.name} vs ${image.expand?.team2?.name}`}
+                        className="w-full aspect-video object-cover rounded-lg"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-300 flex items-center justify-center">
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this photo?')) {
+                              handleDelete(image.id);
+                            }
+                          }}
+                          className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2">
+                        <p className="text-white text-xs">
+                          Jornada {image.expand?.matchday?.number}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

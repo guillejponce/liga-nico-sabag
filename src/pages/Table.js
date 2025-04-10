@@ -58,6 +58,36 @@ const TableComponent = ({ data, title }) => {
         ),
       },
       {
+        Header: 'Pts',
+        accessor: 'points',
+        Cell: ({ value }) => (
+          <div className="text-center font-bold text-blue-800 text-lg">{value}</div>
+        ),
+      },
+      {
+        Header: 'DG',
+        accessor: 'goalDifference',
+        Cell: ({ value }) => (
+          <div className={`text-center font-medium ${value > 0 ? 'text-green-600' : value < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+            {value > 0 ? `+${value}` : value}
+          </div>
+        ),
+      },
+      {
+        Header: 'GF',
+        accessor: 'goalsFor',
+        Cell: ({ value }) => (
+          <div className="text-center font-medium text-blue-600">{value}</div>
+        ),
+      },
+      {
+        Header: 'GC',
+        accessor: 'goalsAgainst',
+        Cell: ({ value }) => (
+          <div className="text-center font-medium text-gray-600">{value}</div>
+        ),
+      },
+      {
         Header: 'G',
         accessor: 'wins',
         Cell: ({ value }) => (
@@ -78,36 +108,6 @@ const TableComponent = ({ data, title }) => {
           <div className="text-center font-medium text-red-600">{value}</div>
         ),
       },
-      {
-        Header: 'GF',
-        accessor: 'goalsFor',
-        Cell: ({ value }) => (
-          <div className="text-center font-medium text-blue-600">{value}</div>
-        ),
-      },
-      {
-        Header: 'GC',
-        accessor: 'goalsAgainst',
-        Cell: ({ value }) => (
-          <div className="text-center font-medium text-gray-600">{value}</div>
-        ),
-      },
-      {
-        Header: 'DG',
-        accessor: 'goalDifference',
-        Cell: ({ value }) => (
-          <div className={`text-center font-medium ${value > 0 ? 'text-green-600' : value < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-            {value > 0 ? `+${value}` : value}
-          </div>
-        ),
-      },
-      {
-        Header: 'Pts',
-        accessor: 'points',
-        Cell: ({ value }) => (
-          <div className="text-center font-bold text-blue-800 text-lg">{value}</div>
-        ),
-      },
     ],
     []
   );
@@ -123,12 +123,7 @@ const TableComponent = ({ data, title }) => {
       columns,
       data,
       initialState: {
-        sortBy: [
-          { id: 'points', desc: true },
-          { id: 'goalDifference', desc: true },
-          { id: 'goalsFor', desc: true },
-          { id: 'goalsAgainst', desc: false }
-        ],
+        sortBy: []
       },
     },
     useSortBy
@@ -265,17 +260,20 @@ const TableView = () => {
 
   const renderTable = (data, title) => {
     if (data.length > 0) {
+      const sortedData = [...data].sort((a, b) => {
+        // Primero por puntos
+        if (b.points !== a.points) return b.points - a.points;
+        
+        // Si los puntos son iguales, por diferencia de gol
+        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+        
+        // Si la diferencia de gol es igual, por goles a favor
+        return b.goalsFor - a.goalsFor;
+      });
+
       return (
         <TableComponent 
-          data={data.sort((a, b) => {
-            if (b.points !== a.points) return b.points - a.points;
-            if (a.points === 0 && b.points === 0) {
-              return b.team.name.localeCompare(a.team.name);
-            }
-            if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-            if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
-            return a.goalsAgainst - b.goalsAgainst;
-          })} 
+          data={sortedData}
           title={title} 
         />
       );

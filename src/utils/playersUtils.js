@@ -28,7 +28,7 @@ export const updatePlayerStatistics = async () => {
         red_cards: 0,
         man_of_the_match: 0
       };
-      console.log(`Resetting stats for player ${player.id}:`, resetStats);
+      // console.log(`Resetting stats for player ${player.id}:`, resetStats);
       return await pb.collection('players').update(player.id, resetStats);
     });
 
@@ -115,10 +115,10 @@ export const updatePlayerStatistics = async () => {
           break;
       }
 
-      console.log('Updated stats for player:', {
-        playerId,
-        stats: playerUpdates[playerId]
-      });
+      // console.log('Updated stats for player:', {
+      //   playerId,
+      //   stats: playerUpdates[playerId]
+      // });
     }
 
     if (Object.keys(playerUpdates).length === 0) {

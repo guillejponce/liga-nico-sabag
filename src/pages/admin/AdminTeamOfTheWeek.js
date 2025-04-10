@@ -224,11 +224,35 @@ const AdminTeamOfTheWeek = () => {
       setFilteredPlayers(filtered);
     };
 
+    // Inicializar los jugadores filtrados con todos los jugadores
+    setFilteredPlayers({
+      player1: players,
+      player2: players,
+      player3: players,
+      player4: players,
+      player5: players,
+      player6: players,
+      player7: players,
+    });
+
     const debouncedFilter = debounce(filterPlayers, 300);
     debouncedFilter();
 
     return () => debouncedFilter.cancel();
   }, [searchTerms, players]);
+
+  // Asegurarse de que los jugadores filtrados se actualicen cuando cambian los jugadores
+  useEffect(() => {
+    setFilteredPlayers({
+      player1: players,
+      player2: players,
+      player3: players,
+      player4: players,
+      player5: players,
+      player6: players,
+      player7: players,
+    });
+  }, [players]);
 
   const handleMatchdayChange = (matchdayId) => {
     setSelectedMatchday(matchdayId);

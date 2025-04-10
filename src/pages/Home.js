@@ -385,7 +385,7 @@ const Home = () => {
             <Link to="/schedule" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Resultados</Link>
             <Link to="/table" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Tabla de Posiciones</Link>
             <Link to="/stats" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Estadísticas</Link>
-            <Link to="/teams" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Equipos</Link>
+            <Link to="/gallery" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Galería</Link>
           </div>
         </section>
 

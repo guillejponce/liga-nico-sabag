@@ -15,11 +15,14 @@ import AdminTeamOfTheWeek from '../pages/admin/AdminTeamOfTheWeek';
 import AdminBanners from '../pages/admin/AdminBanners';
 import AdminEditions from '../pages/admin/AdminEditions';
 import AdminGroups from '../pages/admin/AdminGroups';
+import AdminGallery from '../pages/admin/AdminGallery';
 import ProtectedRoute from '../components/admin/ProtectedRoute';
 import PlayerStatistics from '../pages/PlayerStatistics';
 import Editions from '../pages/Editions';
 import HistoricalTable from '../pages/HistoricalTable';
 import Rules from '../pages/Rules';
+import Gallery from '../pages/Gallery';
+
 const Router = () => {
   return (
     <Routes>
@@ -34,6 +37,7 @@ const Router = () => {
       <Route path="/editions" element={<Editions />} />
       <Route path="/historical-table" element={<HistoricalTable />} />
       <Route path="/rules" element={<Rules />} />
+      <Route path="/gallery" element={<Gallery />} />
 
       {/* Protected admin routes */}
       <Route element={<ProtectedRoute />}>
@@ -47,6 +51,7 @@ const Router = () => {
         <Route path="/admin/banners" element={<AdminBanners />} />
         <Route path="/admin/editions" element={<AdminEditions />} />
         <Route path="/admin/groups" element={<AdminGroups />} />
+        <Route path="/admin/gallery" element={<AdminGallery />} />
       </Route>
     </Routes>
   );

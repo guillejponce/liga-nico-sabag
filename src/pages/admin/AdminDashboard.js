@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { pb } from '../../config';
-import { Users, Calendar, Shield, LogOut, User, Database, Trophy, Image, Grid } from 'lucide-react';
+import { Users, Calendar, Shield, LogOut, User, Database, Trophy, Image, Grid, Camera } from 'lucide-react';
 
 const AdminDashboard = () => {
   const [user, setUser] = useState(null);
@@ -31,6 +31,7 @@ const AdminDashboard = () => {
     { icon: Database, label: 'Database Admin', path: 'https://api.liganicosabag.me/_/', color: 'bg-gray-700', external: true },
     { icon: Image, label: 'Manage Banners', path: '/admin/banners', color: 'bg-pink-500' },
     { icon: Trophy, label: 'Manage Editions', path: '/admin/editions', color: 'bg-purple-600' },
+    { icon: Camera, label: 'Manage Gallery', path: '/admin/gallery', color: 'bg-cyan-500' },
   ];
 
   return (

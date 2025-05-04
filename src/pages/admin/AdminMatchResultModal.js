@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { pb } from '../../config';
 import { updateGroupStats } from '../../utils/groupUtils';
-import { getTeamsByPhase } from '../../utils/groupUtils';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { updatePlayerStatistics } from '../../utils/playersUtils';
 
@@ -115,7 +114,7 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
       pb.cancelRequest(`players-home-${match?.id}`);
       pb.cancelRequest(`players-away-${match?.id}`);
     };
-  }, [match]);
+  }, [match, loadTeamsForPhase]);
 
   const loadTeamsForPhase = async (phase) => {
     if (!phase) {

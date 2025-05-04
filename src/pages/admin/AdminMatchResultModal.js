@@ -3,6 +3,7 @@ import { pb } from '../../config';
 import { updateGroupStats } from '../../utils/groupUtils';
 import { getTeamsByPhase } from '../../utils/groupUtils';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { updatePlayerStatistics } from '../../utils/playersUtils';
 
 const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
   const [homeTeam, setHomeTeam] = useState('');
@@ -16,6 +17,8 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
   const [homePenalties, setHomePenalties] = useState(0);
   const [awayPenalties, setAwayPenalties] = useState(0);
   const [teamsLoading, setTeamsLoading] = useState(false);
+  const [manOfTheMatch, setManOfTheMatch] = useState('');
+  const [availablePlayers, setAvailablePlayers] = useState({ home: [], away: [] });
 
   useEffect(() => {
     const loadMatchData = async () => {
@@ -27,7 +30,7 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
       try {
         // First get the full match data with expanded teams
         const fullMatch = await pb.collection('matches').getOne(match.id, {
-          expand: 'home_team,away_team',
+          expand: 'home_team,away_team,man_of_the_match',
           $cancelKey: `match-get-${match.id}`
         });
         console.log('Full match data:', fullMatch);
@@ -59,6 +62,34 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
           setAwayScore(fullMatch.away_team_score !== null ? String(fullMatch.away_team_score) : '');
           setHomePenalties(fullMatch.home_penalties || 0);
           setAwayPenalties(fullMatch.away_penalties || 0);
+          setManOfTheMatch(fullMatch.man_of_the_match || '');
+
+          // Load players for both teams
+          if (fullMatch.home_team && fullMatch.away_team) {
+            const [homePlayers, awayPlayers] = await Promise.all([
+              pb.collection('players').getFullList({
+                filter: `team="${fullMatch.home_team}"`,
+                sort: 'first_name',
+                $cancelKey: `players-home-${match.id}`
+              }),
+              pb.collection('players').getFullList({
+                filter: `team="${fullMatch.away_team}"`,
+                sort: 'first_name',
+                $cancelKey: `players-away-${match.id}`
+              })
+            ]);
+
+            setAvailablePlayers({
+              home: homePlayers.map(player => ({
+                id: player.id,
+                name: `${player.first_name} ${player.last_name}`
+              })),
+              away: awayPlayers.map(player => ({
+                id: player.id,
+                name: `${player.first_name} ${player.last_name}`
+              }))
+            });
+          }
         } else {
           console.error('No phase found in matchday data');
           setAvailableTeams([]);
@@ -81,6 +112,8 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
       pb.cancelRequest(`matchday-${match?.id}`);
       pb.cancelRequest(`teams-${match?.id}`);
       pb.cancelRequest(`match-update-${match?.id}`);
+      pb.cancelRequest(`players-home-${match?.id}`);
+      pb.cancelRequest(`players-away-${match?.id}`);
     };
   }, [match]);
 
@@ -194,7 +227,8 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
         home_team: homeTeam,
         away_team: awayTeam,
         date_time: datetime,
-        is_finished: shouldFinish
+        is_finished: shouldFinish,
+        man_of_the_match: manOfTheMatch || null
       };
 
       // Only include scores if they are provided
@@ -219,19 +253,25 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
       });
       console.log('Match updated:', updatedMatch);
       
-      // If we're finishing the match, update group statistics
-      if (shouldFinish) {
+      // If we're finishing the match or updating MOTM, update statistics
+      if (shouldFinish || data.man_of_the_match !== undefined) {
         // Get the matchday data to know which phase we're in
         const matchdayData = await pb.collection('matchdays').getOne(match.matchday, {
           $cancelKey: `matchday-update-${match.id}`
         });
         
-        await updateGroupStats({
-          ...updatedMatch,
-          phase: matchdayData.phase,
-          home_team_score: parseInt(homeScore),
-          away_team_score: parseInt(awayScore)
-        });
+        // Update group stats if finishing the match
+        if (shouldFinish) {
+          await updateGroupStats({
+            ...updatedMatch,
+            phase: matchdayData.phase,
+            home_team_score: parseInt(homeScore),
+            away_team_score: parseInt(awayScore)
+          });
+        }
+
+        // Update player statistics
+        await updatePlayerStatistics();
       }
 
       onSave(updatedMatch);
@@ -371,6 +411,37 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
                 </div>
               </div>
             )}
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Jugador del Partido
+              </label>
+              <select
+                value={manOfTheMatch}
+                onChange={(e) => setManOfTheMatch(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent sm:text-sm"
+              >
+                <option value="">Seleccionar jugador</option>
+                {availablePlayers.home.length > 0 && (
+                  <optgroup label="Equipo Local">
+                    {availablePlayers.home.map(player => (
+                      <option key={player.id} value={player.id}>
+                        {player.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {availablePlayers.away.length > 0 && (
+                  <optgroup label="Equipo Visitante">
+                    {availablePlayers.away.map(player => (
+                      <option key={player.id} value={player.id}>
+                        {player.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
 
             <div className="flex justify-end space-x-4 mt-6">
               <button

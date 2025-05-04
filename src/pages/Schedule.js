@@ -3,9 +3,7 @@ import { Calendar, Clock, Trophy } from 'lucide-react';
 import { pb } from '../config';
 import { fetchMatchdays } from '../hooks/admin/matchdayHandlers';
 import { fetchMatchesByMatchday } from '../hooks/admin/matchHandlers';
-import { useTeams } from '../hooks/teams/useTeams';
-import Bracket from '../components/results/bracket';
-import { fetchCurrentEdition } from '../hooks/admin/editionHandlers';
+import {  fetchCurrentEdition } from '../hooks/admin/editionHandlers';
 
 const PHASE_LABELS = {
   group_a: "Grupo A",
@@ -218,7 +216,7 @@ const Schedule = () => {
   const [error, setError] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [currentEdition, setCurrentEdition] = useState(null);
-  const { teams } = useTeams();
+
 
   // Group matchdays by phase
   const matchdaysByPhase = matchdays.reduce((acc, matchday) => {

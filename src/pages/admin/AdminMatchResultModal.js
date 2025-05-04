@@ -254,7 +254,7 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
       console.log('Match updated:', updatedMatch);
       
       // If we're finishing the match or updating MOTM, update statistics
-      if (shouldFinish || data.man_of_the_match !== undefined) {
+      if (shouldFinish || (data.man_of_the_match !== null && data.man_of_the_match !== match.man_of_the_match)) {
         // Get the matchday data to know which phase we're in
         const matchdayData = await pb.collection('matchdays').getOne(match.matchday, {
           $cancelKey: `matchday-update-${match.id}`

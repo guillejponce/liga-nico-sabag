@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { pb } from '../../config';
 import { updateGroupStats } from '../../utils/groupUtils';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -18,6 +18,78 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
   const [teamsLoading, setTeamsLoading] = useState(false);
   const [manOfTheMatch, setManOfTheMatch] = useState('');
   const [availablePlayers, setAvailablePlayers] = useState({ home: [], away: [] });
+
+  const loadTeamsForPhase = useCallback(async (phase) => {
+    if (!phase) {
+      console.error('Phase is required for loading teams');
+      return;
+    }
+
+    setTeamsLoading(true);
+    try {
+      // For semifinals and finals, show all teams
+      if (phase === 'gold_semi' || phase === 'silver_semi' || 
+          phase === 'gold_final' || phase === 'silver_final') {
+        const allTeams = await pb.collection('teams').getFullList({
+          sort: 'name',
+          $cancelKey: `teams-${match?.id}`
+        });
+        setAvailableTeams(allTeams.map(team => ({
+          id: team.id,
+          name: team.name
+        })));
+        return;
+      }
+
+      // For group phases, filter by group
+      let collection;
+      switch (phase) {
+        case 'group_a':
+          collection = 'group_a_stats';
+          break;
+        case 'group_b':
+          collection = 'group_b_stats';
+          break;
+        case 'gold_group':
+          collection = 'gold_group_stats';
+          break;
+        case 'silver_group':
+          collection = 'silver_group_stats';
+          break;
+        default:
+          console.error('Invalid phase:', phase);
+          return;
+      }
+
+      console.log('Fetching teams from collection:', collection);
+
+      const records = await pb.collection(collection).getFullList({
+        expand: 'team',
+        sort: 'created',
+        $cancelKey: `teams-${match?.id}`
+      });
+
+      console.log('Records fetched:', records);
+
+      const teams = records
+        .map(record => record.expand?.team)
+        .filter(Boolean)
+        .map(team => ({
+          id: team.id,
+          name: team.name
+        }));
+
+      console.log('Processed teams:', teams);
+      setAvailableTeams(teams);
+    } catch (error) {
+      if (!error.message?.includes('autocancelled')) {
+        console.error('Error loading teams for phase:', error);
+        setAvailableTeams([]);
+      }
+    } finally {
+      setTeamsLoading(false);
+    }
+  }, [match?.id]);
 
   useEffect(() => {
     const loadMatchData = async () => {
@@ -115,78 +187,6 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
       pb.cancelRequest(`players-away-${match?.id}`);
     };
   }, [match, loadTeamsForPhase]);
-
-  const loadTeamsForPhase = async (phase) => {
-    if (!phase) {
-      console.error('Phase is required for loading teams');
-      return;
-    }
-
-    setTeamsLoading(true);
-    try {
-      // For semifinals and finals, show all teams
-      if (phase === 'gold_semi' || phase === 'silver_semi' || 
-          phase === 'gold_final' || phase === 'silver_final') {
-        const allTeams = await pb.collection('teams').getFullList({
-          sort: 'name',
-          $cancelKey: `teams-${match?.id}`
-        });
-        setAvailableTeams(allTeams.map(team => ({
-          id: team.id,
-          name: team.name
-        })));
-        return;
-      }
-
-      // For group phases, filter by group
-      let collection;
-      switch (phase) {
-        case 'group_a':
-          collection = 'group_a_stats';
-          break;
-        case 'group_b':
-          collection = 'group_b_stats';
-          break;
-        case 'gold_group':
-          collection = 'gold_group_stats';
-          break;
-        case 'silver_group':
-          collection = 'silver_group_stats';
-          break;
-        default:
-          console.error('Invalid phase:', phase);
-          return;
-      }
-
-      console.log('Fetching teams from collection:', collection);
-
-      const records = await pb.collection(collection).getFullList({
-        expand: 'team',
-        sort: 'created',
-        $cancelKey: `teams-${match?.id}`
-      });
-
-      console.log('Records fetched:', records);
-
-      const teams = records
-        .map(record => record.expand?.team)
-        .filter(Boolean)
-        .map(team => ({
-          id: team.id,
-          name: team.name
-        }));
-
-      console.log('Processed teams:', teams);
-      setAvailableTeams(teams);
-    } catch (error) {
-      if (!error.message?.includes('autocancelled')) {
-        console.error('Error loading teams for phase:', error);
-        setAvailableTeams([]);
-      }
-    } finally {
-      setTeamsLoading(false);
-    }
-  };
 
   // Show penalty inputs if the scores are equal
   const showPenalties = Number(homeScore) === Number(awayScore);

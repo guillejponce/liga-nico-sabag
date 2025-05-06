@@ -3,9 +3,7 @@ import { Calendar, Clock, Trophy } from 'lucide-react';
 import { pb } from '../config';
 import { fetchMatchdays } from '../hooks/admin/matchdayHandlers';
 import { fetchMatchesByMatchday } from '../hooks/admin/matchHandlers';
-import { useTeams } from '../hooks/teams/useTeams';
-import Bracket from '../components/results/bracket';
-import { fetchCurrentEdition } from '../hooks/admin/editionHandlers';
+import {  fetchCurrentEdition } from '../hooks/admin/editionHandlers';
 
 const PHASE_LABELS = {
   group_a: "Grupo A",
@@ -84,25 +82,32 @@ const getEventLabel = (type) => {
 const MatchEventsModal = ({ match, onClose }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [motm, setMotm] = useState(null);
 
   useEffect(() => {
-    const loadEvents = async () => {
+    const loadData = async () => {
       try {
-        const response = await pb.collection('events').getList(1, 50, {
-          filter: `match="${match.id}"`,
-          sort: '+created',
-          expand: 'player,player.team'
-        });
-        setEvents(response.items);
+        const [eventsResponse, matchData] = await Promise.all([
+          pb.collection('events').getList(1, 50, {
+            filter: `match="${match.id}"`,
+            sort: '+created',
+            expand: 'player,player.team'
+          }),
+          pb.collection('matches').getOne(match.id, {
+            expand: 'man_of_the_match,man_of_the_match.team'
+          })
+        ]);
+        setEvents(eventsResponse.items);
+        setMotm(matchData.expand?.man_of_the_match);
       } catch (error) {
-        console.error('Error loading events:', error);
+        console.error('Error loading match data:', error);
       } finally {
         setLoading(false);
       }
     };
 
     if (match?.id) {
-      loadEvents();
+      loadData();
     }
   }, [match?.id]);
 
@@ -131,6 +136,26 @@ const MatchEventsModal = ({ match, onClose }) => {
               ×
             </button>
           </div>
+
+          {/* MOTM Section */}
+          {motm && (
+            <div className="mb-6 p-4 bg-accent/10 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Trophy className="w-6 h-6 text-accent" />
+                  <div>
+                    <h3 className="font-semibold text-lg">Jugador del Partido</h3>
+                    <p className="text-gray-600">
+                      {`${motm.first_name} ${motm.last_name}`}
+                      <span className="text-accent ml-2">
+                        ({motm.expand?.team?.name})
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4">
             {events.length > 0 ? (
@@ -191,7 +216,7 @@ const Schedule = () => {
   const [error, setError] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [currentEdition, setCurrentEdition] = useState(null);
-  const { teams } = useTeams();
+
 
   // Group matchdays by phase
   const matchdaysByPhase = matchdays.reduce((acc, matchday) => {

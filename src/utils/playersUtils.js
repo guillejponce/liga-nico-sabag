@@ -28,7 +28,6 @@ export const updatePlayerStatistics = async () => {
         red_cards: 0,
         man_of_the_match: 0
       };
-      // console.log(`Resetting stats for player ${player.id}:`, resetStats);
       return await pb.collection('players').update(player.id, resetStats);
     });
 
@@ -46,20 +45,39 @@ export const updatePlayerStatistics = async () => {
     console.log('Fetched matchdays for current edition:', matchdays.length);
 
     // 3. Get all matches for these matchdays
-    const matchIds = [];
+    const matches = [];
     for (const matchday of matchdays) {
-      const matches = await pb.collection('matches').getFullList({
-        filter: `matchday = "${matchday.id}"`,
+      const matchdayMatches = await pb.collection('matches').getFullList({
+        filter: `matchday = "${matchday.id}" && is_finished = true`,
       });
-      matchIds.push(...matches.map(m => m.id));
+      matches.push(...matchdayMatches);
     }
-    if (matchIds.length === 0) {
+    if (matches.length === 0) {
       console.warn('No matches found for current edition');
       return false;
     }
-    console.log('Found matches for current edition:', matchIds);
+    console.log('Found matches for current edition:', matches.length);
 
-    // 4. Fetch events only for matches in current edition
+    // Initialize player updates
+    const playerUpdates = {};
+
+    // Process MOTM from matches
+    for (const match of matches) {
+      if (match.man_of_the_match) {
+        if (!playerUpdates[match.man_of_the_match]) {
+          playerUpdates[match.man_of_the_match] = {
+            scored_goals: 0,
+            yellow_cards: 0,
+            red_cards: 0,
+            man_of_the_match: 0
+          };
+        }
+        playerUpdates[match.man_of_the_match].man_of_the_match += 1;
+      }
+    }
+
+    // 4. Process events for goals and cards
+    const matchIds = matches.map(m => m.id);
     const filterConditions = matchIds.map(id => `match = "${id}"`).join(' || ');
     console.log('Generated filter:', filterConditions);
     
@@ -67,15 +85,9 @@ export const updatePlayerStatistics = async () => {
       filter: filterConditions,
       expand: 'player,match'
     });
-    if (!events || events.length === 0) {
-      console.warn('No events found for current edition');
-      return false;
-    }
-    console.log('Fetched events for current edition:', events.length);
+    console.log('Fetched events for current edition:', events?.length || 0);
 
-    // 5. Process each event and collect player statistics updates
-    const playerUpdates = {};
-
+    // Process each event
     for (const event of events) {
       if (!event.player) {
         console.warn('Event has no player:', event);
@@ -83,7 +95,6 @@ export const updatePlayerStatistics = async () => {
       }
       
       const playerId = event.player;
-      console.log('Processing event:', event);
 
       // Initialize player updates if not exists
       if (!playerUpdates[playerId]) {
@@ -107,18 +118,10 @@ export const updatePlayerStatistics = async () => {
         case 'red_card':
           playerUpdates[playerId].red_cards += 1;
           break;
-        case 'man_of_the_match':
-          playerUpdates[playerId].man_of_the_match += 1;
-          break;
         default:
           console.warn('Unknown event type:', event.type);
           break;
       }
-
-      // console.log('Updated stats for player:', {
-      //   playerId,
-      //   stats: playerUpdates[playerId]
-      // });
     }
 
     if (Object.keys(playerUpdates).length === 0) {
@@ -126,7 +129,7 @@ export const updatePlayerStatistics = async () => {
       return false;
     }
 
-    // 6. Update all players in the database with their final statistics
+    // Update all players in the database with their final statistics
     console.log('Final player updates before saving:', playerUpdates);
 
     const updatePromises = Object.entries(playerUpdates).map(async ([playerId, stats]) => {

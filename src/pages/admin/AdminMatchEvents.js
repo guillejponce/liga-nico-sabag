@@ -172,7 +172,12 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
   const handleSaveStats = async () => {
     try {
       setSaveStatus('saving');
-      console.log('Starting to update player statistics...');
+      console.log('Starting to update player statistics for match:', match.id);
+      
+      // Notify user that stats are updating in the background
+      toast.loading('Actualizando estadísticas de jugadores...', {
+        id: `player-stats-${match.id}`
+      });
       
       // Get current events to verify they exist
       const currentEvents = await pb.collection('events').getFullList({
@@ -181,21 +186,28 @@ const AdminMatchEvents = ({ match, onClose, updateMatchEvents }) => {
       });
       console.log('Current events before updating stats:', currentEvents);
       
-      const result = await updatePlayerStatistics();
+      // Use optimized version with match ID for better performance
+      const result = await updatePlayerStatistics(match.id);
       console.log('Update player statistics result:', result);
       
       if (result) {
-        toast.success('Estadísticas de jugadores actualizadas correctamente');
+        toast.success('Estadísticas de jugadores actualizadas correctamente', {
+          id: `player-stats-${match.id}`
+        });
         setSaveStatus('saved');
         // Reset status after 3 seconds
         setTimeout(() => setSaveStatus(null), 3000);
       } else {
-        toast.warning('No se actualizaron estadísticas');
+        toast.warning('No se actualizaron estadísticas', {
+          id: `player-stats-${match.id}`
+        });
         setSaveStatus(null);
       }
     } catch (error) {
       console.error('Error updating player statistics:', error);
-      toast.error('Error al actualizar estadísticas: ' + error.message);
+      toast.error('Error al actualizar estadísticas: ' + error.message, {
+        id: `player-stats-${match.id}`
+      });
       setSaveStatus('error');
       // Reset error status after 3 seconds
       setTimeout(() => setSaveStatus(null), 3000);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { pb } from '../config';
-import { Search, Download, X, ChevronLeft } from 'lucide-react';
+import { Search, Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   fetchGalleryImages,
@@ -29,6 +29,7 @@ const Gallery = () => {
     team: '',
     search: '',
   });
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   useEffect(() => {
     loadInitialData();
@@ -112,6 +113,22 @@ const Gallery = () => {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Error downloading image:', error);
+    }
+  };
+
+  const handleNextPhoto = () => {
+    if (selectedMatch && selectedMatch.images) {
+      setCurrentPhotoIndex((prevIndex) => 
+        prevIndex === selectedMatch.images.length - 1 ? 0 : prevIndex + 1
+      );
+    }
+  };
+
+  const handlePrevPhoto = () => {
+    if (selectedMatch && selectedMatch.images) {
+      setCurrentPhotoIndex((prevIndex) => 
+        prevIndex === 0 ? selectedMatch.images.length - 1 : prevIndex - 1
+      );
     }
   };
 
@@ -340,6 +357,27 @@ const Gallery = () => {
                 >
                   <X className="w-6 h-6" />
                 </button>
+                {/* Navigation buttons */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePrevPhoto();
+                    setSelectedImage(selectedMatch.images[currentPhotoIndex]);
+                  }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-75 rounded-full p-2 hover:bg-opacity-100 transition-opacity"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleNextPhoto();
+                    setSelectedImage(selectedMatch.images[currentPhotoIndex]);
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-75 rounded-full p-2 hover:bg-opacity-100 transition-opacity"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
               </div>
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
@@ -359,6 +397,21 @@ const Gallery = () => {
                     <Download className="w-5 h-5" />
                     Descargar
                   </button>
+                </div>
+                <div className="flex justify-center gap-2 mt-4">
+                  {selectedMatch?.images?.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentPhotoIndex(index);
+                        setSelectedImage(selectedMatch.images[index]);
+                      }}
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        index === currentPhotoIndex ? 'bg-blue-500 w-4' : 'bg-gray-300'
+                      }`}
+                    />
+                  ))}
                 </div>
               </div>
             </motion.div>

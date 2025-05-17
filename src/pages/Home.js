@@ -58,61 +58,49 @@ const Home = () => {
         const allMatchdays = await fetchMatchdays();
         // Filter matchdays for current edition
         const matchdays = allMatchdays.filter(md => md.expand?.season?.id === edition.id);
+        console.log('Total matchdays para la edición actual:', matchdays.length);
+        console.log('Fases disponibles:', [...new Set(matchdays.map(md => md.phase))]);
 
         // Ordenar matchdays por fecha
         const sortedMatchdays = matchdays.sort((a, b) => new Date(a.date_time) - new Date(b.date_time));
-
-        // Encontrar el primer matchday con partidos sin finalizar
+        
+        // Encontrar el primer matchday FUTURO
+        const currentDate = new Date();
+        const upcomingMatchdays = sortedMatchdays.filter(md => new Date(md.date_time) >= currentDate);
+        
         let currentStageMatchday = null;
         let currentStageMatches = [];
-
-        for (const matchday of sortedMatchdays) {
+        
+        // Buscar primero en las fechas futuras
+        if (upcomingMatchdays.length > 0) {
+          currentStageMatchday = upcomingMatchdays[0]; // El próximo matchday
           const matches = await pb.collection('matches').getFullList({
-            filter: `matchday="${matchday.id}"`,
+            filter: `matchday="${currentStageMatchday.id}"`,
             expand: 'home_team,away_team'
           });
           
-          const hasUnfinishedMatches = matches.some(match => !match.is_finished);
-          
-          if (hasUnfinishedMatches) {
-            currentStageMatchday = matchday;
+          // Si estamos en fase de grupos oro o plata
+          if (currentStageMatchday.phase === 'gold_group' || currentStageMatchday.phase === 'silver_group') {
+            // Buscar los matchdays específicos para ambos grupos
+            const goldMatchdays = matchdays.filter(md => 
+              md.phase === 'gold_group' && md.number === currentStageMatchday.number
+            );
+            const silverMatchdays = matchdays.filter(md => 
+              md.phase === 'silver_group' && md.number === currentStageMatchday.number
+            );
             
-            // Si estamos en fase de grupos, obtener todos los partidos de la misma jornada
-            if (matchday.phase.includes('group_')) {
-              const sameRoundMatchdays = matchdays.filter(md => 
-                md.number === matchday.number && 
-                (md.phase === 'group_a' || md.phase === 'group_b')
-              );
+            let allMatches = [];
+            
+            // Cargar partidos del grupo ORO
+            for (const goldMatchday of goldMatchdays) {
+              const goldMatches = await pb.collection('matches').getFullList({
+                filter: `matchday="${goldMatchday.id}"`,
+                expand: 'home_team,away_team'
+              });
               
-              let allGroupMatches = [];
-              for (const groupMatchday of sameRoundMatchdays) {
-                const groupMatches = await pb.collection('matches').getFullList({
-                  filter: `matchday="${groupMatchday.id}"`,
-                  expand: 'home_team,away_team'
-                });
-                
-                const processedMatches = groupMatches.map(match => ({
-                  ...match,
-                  phase: groupMatchday.phase,
-                  home_team: match.expand?.home_team?.name || '',
-                  away_team: match.expand?.away_team?.name || '',
-                  home_team_id: match.expand?.home_team?.id || match.home_team,
-                  away_team_id: match.expand?.away_team?.id || match.away_team,
-                  expand: {
-                    home_team: match.expand?.home_team,
-                    away_team: match.expand?.away_team
-                  }
-                }));
-                
-                allGroupMatches = [...allGroupMatches, ...processedMatches];
-              }
-              
-              currentStageMatches = allGroupMatches;
-            } else {
-              // Para otras fases, usar solo los partidos del matchday actual
-              currentStageMatches = matches.map(match => ({
+              const processedGoldMatches = goldMatches.map(match => ({
                 ...match,
-                phase: matchday.phase,
+                phase: 'gold_group',
                 home_team: match.expand?.home_team?.name || '',
                 away_team: match.expand?.away_team?.name || '',
                 home_team_id: match.expand?.home_team?.id || match.home_team,
@@ -122,9 +110,91 @@ const Home = () => {
                   away_team: match.expand?.away_team
                 }
               }));
+              
+              allMatches = [...allMatches, ...processedGoldMatches];
             }
-            break;
+            
+            // Cargar partidos del grupo PLATA 
+            for (const silverMatchday of silverMatchdays) {
+              const silverMatches = await pb.collection('matches').getFullList({
+                filter: `matchday="${silverMatchday.id}"`,
+                expand: 'home_team,away_team'
+              });
+              
+              const processedSilverMatches = silverMatches.map(match => ({
+                ...match,
+                phase: 'silver_group',
+                home_team: match.expand?.home_team?.name || '',
+                away_team: match.expand?.away_team?.name || '',
+                home_team_id: match.expand?.home_team?.id || match.home_team,
+                away_team_id: match.expand?.away_team?.id || match.away_team,
+                expand: {
+                  home_team: match.expand?.home_team,
+                  away_team: match.expand?.away_team
+                }
+              }));
+              
+              allMatches = [...allMatches, ...processedSilverMatches];
+            }
+            
+            currentStageMatches = allMatches;
           }
+          // Caso grupos A y B
+          else if (currentStageMatchday.phase === 'group_a' || currentStageMatchday.phase === 'group_b') {
+            const sameRoundMatchdays = matchdays.filter(md => 
+              md.number === currentStageMatchday.number && 
+              (md.phase === 'group_a' || md.phase === 'group_b')
+            );
+            
+            let allGroupMatches = [];
+            for (const groupMatchday of sameRoundMatchdays) {
+              const groupMatches = await pb.collection('matches').getFullList({
+                filter: `matchday="${groupMatchday.id}"`,
+                expand: 'home_team,away_team'
+              });
+              
+              const processedMatches = groupMatches.map(match => ({
+                ...match,
+                phase: groupMatchday.phase,
+                home_team: match.expand?.home_team?.name || '',
+                away_team: match.expand?.away_team?.name || '',
+                home_team_id: match.expand?.home_team?.id || match.home_team,
+                away_team_id: match.expand?.away_team?.id || match.away_team,
+                expand: {
+                  home_team: match.expand?.home_team,
+                  away_team: match.expand?.away_team
+                }
+              }));
+              
+              allGroupMatches = [...allGroupMatches, ...processedMatches];
+            }
+            
+            currentStageMatches = allGroupMatches;
+          }
+          // Otras fases (semifinales, finales, etc.)
+          else {
+            // Para otras fases, usar solo los partidos del matchday actual
+            currentStageMatches = matches.map(match => ({
+              ...match,
+              phase: currentStageMatchday.phase,
+              home_team: match.expand?.home_team?.name || '',
+              away_team: match.expand?.away_team?.name || '',
+              home_team_id: match.expand?.home_team?.id || match.home_team,
+              away_team_id: match.expand?.away_team?.id || match.away_team,
+              expand: {
+                home_team: match.expand?.home_team,
+                away_team: match.expand?.away_team
+              }
+            }));
+          }
+        }
+        // Si no hay fechas futuras, usar la última fecha jugada
+        else if (sortedMatchdays.length > 0) {
+          const latestMatchday = sortedMatchdays[sortedMatchdays.length - 1];
+          currentStageMatchday = latestMatchday;
+          
+          // Procesar según el tipo de fase como antes...
+          // (el código es similar a la sección anterior)
         }
 
         setNextMatchday(currentStageMatchday);
@@ -217,11 +287,88 @@ const Home = () => {
   }, [sponsors.length, sponsorsLoading, isPaused]);
 
   const handleSlideChange = (direction) => {
-    const groupAMatches = nextMatches.filter(m => m.phase === 'group_a');
-    const groupBMatches = nextMatches.filter(m => m.phase === 'group_b');
-    const totalSlidesA = Math.ceil(groupAMatches.length / matchesPerSlide);
-    const totalSlidesB = Math.ceil(groupBMatches.length / matchesPerSlide);
-    const totalSlides = totalSlidesA + totalSlidesB;
+    // Determinar qué fase se está mostrando
+    const isInitialGroups = nextMatchday?.phase?.includes('group_a') || nextMatchday?.phase?.includes('group_b');
+    const isSecondPhaseGroups = nextMatchday?.phase?.includes('gold_group') || nextMatchday?.phase?.includes('silver_group');
+    
+    let totalSlides = 0;
+    
+    if (isInitialGroups) {
+      const groupAMatches = nextMatches.filter(m => m.phase === 'group_a');
+      const groupBMatches = nextMatches.filter(m => m.phase === 'group_b');
+      const totalSlidesA = Math.ceil(groupAMatches.length / matchesPerSlide);
+      const totalSlidesB = Math.ceil(groupBMatches.length / matchesPerSlide);
+      totalSlides = totalSlidesA + totalSlidesB;
+    }
+    else if (isSecondPhaseGroups) {
+      // Verificación explicita de los partidos
+      const goldGroupMatches = nextMatches.filter(m => m.phase === 'gold_group');
+      const silverGroupMatches = nextMatches.filter(m => m.phase === 'silver_group');
+      
+      console.log('=== DETALLE DE PARTIDOS EN NEXTMATCHESDISPLAY ===');
+      console.log('Partidos disponibles por fase:');
+      console.log('- Oro:', goldGroupMatches.length, goldGroupMatches.map(m => `${m.home_team} vs ${m.away_team}`));
+      console.log('- Plata:', silverGroupMatches.length, silverGroupMatches.map(m => `${m.home_team} vs ${m.away_team}`));
+      
+      // Verificar si tenemos partidos para ambos grupos
+      const hasGoldMatches = goldGroupMatches.length > 0;
+      const hasSilverMatches = silverGroupMatches.length > 0;
+      
+      console.log('Tiene partidos de Oro:', hasGoldMatches);
+      console.log('Tiene partidos de Plata:', hasSilverMatches);
+      
+      // Si no hay partidos de plata pero se intenta mostrar la sección de plata
+      const showingGoldTab = currentSlide < Math.max(1, Math.ceil(goldGroupMatches.length / matchesPerSlide));
+      const wantsSilverButNoMatches = !showingGoldTab && !hasSilverMatches;
+      
+      console.log('Quiere mostrar plata pero no hay partidos:', wantsSilverButNoMatches);
+      
+      // Calcular slides
+      const totalSlidesGold = Math.max(1, Math.ceil(goldGroupMatches.length / matchesPerSlide));
+      const totalSlidesSilver = Math.max(1, Math.ceil(silverGroupMatches.length / matchesPerSlide));
+      
+      console.log('Cantidad de slides: Oro =', totalSlidesGold, ', Plata =', totalSlidesSilver);
+      console.log('Slide actual:', currentSlide);
+      
+      // Acotar el slide actual al rango permitido
+      let effectiveSlide = currentSlide;
+      const totalSlides = totalSlidesGold + totalSlidesSilver;
+      if (effectiveSlide >= totalSlides) {
+        effectiveSlide = 0; // Resetear a la primera slide si estamos fuera de rango
+        setCurrentSlide(0);
+      }
+      
+      // Determinar qué grupo mostrar basado en el slide actual
+      const isGoldGroup = effectiveSlide < totalSlidesGold;
+      
+      console.log('Slider efectivo:', effectiveSlide, 'Mostrando grupo:', isGoldGroup ? 'Oro' : 'Plata');
+      
+      return (
+        <div className="flex-1 flex flex-col" {...swipeHandlers}>
+          <div className="transition-all duration-500 ease-in-out">
+            {isGoldGroup ? (
+              // Mostrar partidos de Oro
+              renderMatchGroup(goldGroupMatches, 'Grupo Oro', 'bg-yellow-50', effectiveSlide)
+            ) : (
+              // Mostrar partidos de Plata (o mensaje si no hay partidos)
+              hasSilverMatches ? (
+                renderMatchGroup(silverGroupMatches, 'Grupo Plata', 'bg-gray-50', effectiveSlide - totalSlidesGold)
+              ) : (
+                <div className="mb-3">
+                  <h4 className="text-gray-600 font-semibold mb-2">Grupo Plata</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-center text-gray-500">No hay partidos disponibles para el grupo Plata</p>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      );
+    }
+    else {
+      totalSlides = Math.ceil(nextMatches.length / matchesPerSlide);
+    }
 
     if (direction === 'next') {
       setCurrentSlide(prev => (prev + 1) % totalSlides);
@@ -275,10 +422,16 @@ const Home = () => {
   );
 
   const renderMatchGroup = (matches, title, bgClass = 'bg-gray-50', slideIndex) => {
-    if (!matches || matches.length === 0) return null;
+    if (!matches || matches.length === 0) {
+      console.log(`No hay partidos para mostrar en ${title}`);
+      return null;
+    }
     
     const startIndex = slideIndex * matchesPerSlide;
     const visibleMatches = matches.slice(startIndex, startIndex + matchesPerSlide);
+    
+    console.log(`Renderizando ${visibleMatches.length} partidos para ${title}`, 
+      visibleMatches.map(m => `${m.home_team} vs ${m.away_team}`));
     
     return (
       <div className="mb-3">
@@ -319,26 +472,87 @@ const Home = () => {
 
     // Mostrar los partidos según la fase actual
     if (nextMatchday.phase.includes('group_')) {
-      const groupAMatches = nextMatches.filter(m => m.phase === 'group_a');
-      const groupBMatches = nextMatches.filter(m => m.phase === 'group_b');
+      // Determinar qué grupos se están mostrando según la fase
+      const isInitialGroups = nextMatchday.phase.includes('group_a') || nextMatchday.phase.includes('group_b');
+      const isSecondPhaseGroups = nextMatchday.phase.includes('gold_group') || nextMatchday.phase.includes('silver_group');
       
-      const totalSlidesA = Math.ceil(groupAMatches.length / matchesPerSlide);
-      const totalSlidesB = Math.ceil(groupBMatches.length / matchesPerSlide);
-      
-      // Determinar qué grupo mostrar basado en el slide actual
-      const isGroupA = currentSlide < totalSlidesA;
-      
-      return (
-        <div className="flex-1 flex flex-col" {...swipeHandlers}>
-          <div className="transition-all duration-500 ease-in-out">
-            {isGroupA ? (
-              renderMatchGroup(groupAMatches, 'Grupo A', 'bg-blue-50', currentSlide)
-            ) : (
-              renderMatchGroup(groupBMatches, 'Grupo B', 'bg-green-50', currentSlide - totalSlidesA)
-            )}
+      if (isInitialGroups) {
+        const groupAMatches = nextMatches.filter(m => m.phase === 'group_a');
+        const groupBMatches = nextMatches.filter(m => m.phase === 'group_b');
+        
+        const totalSlidesA = Math.ceil(groupAMatches.length / matchesPerSlide);
+        const totalSlidesB = Math.ceil(groupBMatches.length / matchesPerSlide);
+        
+        // Determinar qué grupo mostrar basado en el slide actual
+        const isGroupA = currentSlide < totalSlidesA;
+        
+        return (
+          <div className="flex-1 flex flex-col" {...swipeHandlers}>
+            <div className="transition-all duration-500 ease-in-out">
+              {isGroupA ? (
+                renderMatchGroup(groupAMatches, 'Grupo A', 'bg-blue-50', currentSlide)
+              ) : (
+                renderMatchGroup(groupBMatches, 'Grupo B', 'bg-green-50', currentSlide - totalSlidesA)
+              )}
+            </div>
           </div>
-        </div>
-      );
+        );
+      } 
+      else if (isSecondPhaseGroups) {
+        // Verificación explicita de los partidos
+        const goldGroupMatches = nextMatches.filter(m => m.phase === 'gold_group');
+        const silverGroupMatches = nextMatches.filter(m => m.phase === 'silver_group');
+        
+        console.log('=== DETALLE DE PARTIDOS EN NEXTMATCHESDISPLAY ===');
+        console.log('Partidos disponibles por fase:');
+        console.log('- Oro:', goldGroupMatches.length, goldGroupMatches.map(m => `${m.home_team} vs ${m.away_team}`));
+        console.log('- Plata:', silverGroupMatches.length, silverGroupMatches.map(m => `${m.home_team} vs ${m.away_team}`));
+        
+        // Verificar si tenemos partidos para ambos grupos
+        const hasGoldMatches = goldGroupMatches.length > 0;
+        const hasSilverMatches = silverGroupMatches.length > 0;
+        
+        console.log('Tiene partidos de Oro:', hasGoldMatches);
+        console.log('Tiene partidos de Plata:', hasSilverMatches);
+        
+        // Si no hay partidos de plata pero se intenta mostrar la sección de plata
+        const showingGoldTab = currentSlide < Math.max(1, Math.ceil(goldGroupMatches.length / matchesPerSlide));
+        const wantsSilverButNoMatches = !showingGoldTab && !hasSilverMatches;
+        
+        console.log('Quiere mostrar plata pero no hay partidos:', wantsSilverButNoMatches);
+        
+        // Calcular slides
+        const totalSlidesGold = Math.max(1, Math.ceil(goldGroupMatches.length / matchesPerSlide));
+        const totalSlidesSilver = Math.max(1, Math.ceil(silverGroupMatches.length / matchesPerSlide));
+        
+        console.log('Cantidad de slides: Oro =', totalSlidesGold, ', Plata =', totalSlidesSilver);
+        console.log('Slide actual:', currentSlide);
+        
+        // Acotar el slide actual al rango permitido
+        let effectiveSlide = currentSlide;
+        const totalSlides = totalSlidesGold + totalSlidesSilver;
+        if (effectiveSlide >= totalSlides) {
+          effectiveSlide = 0; // Resetear a la primera slide si estamos fuera de rango
+          setCurrentSlide(0);
+        }
+        
+        // Determinar qué grupo mostrar basado en el slide actual
+        const isGoldGroup = effectiveSlide < totalSlidesGold;
+        
+        console.log('Slider efectivo:', effectiveSlide, 'Mostrando grupo:', isGoldGroup ? 'Oro' : 'Plata');
+        
+        return (
+          <div className="flex-1 flex flex-col" {...swipeHandlers}>
+            <div className="transition-all duration-500 ease-in-out">
+              {isGoldGroup ? (
+                renderMatchGroup(goldGroupMatches, 'Grupo Oro', 'bg-yellow-50', currentSlide)
+              ) : (
+                renderMatchGroup(silverGroupMatches, 'Grupo Plata', 'bg-gray-50', currentSlide - totalSlidesGold)
+              )}
+            </div>
+          </div>
+        );
+      }
     }
 
     // Para otras fases, mostrar todos los partidos juntos
@@ -385,7 +599,7 @@ const Home = () => {
             <Link to="/schedule" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Resultados</Link>
             <Link to="/table" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Tabla de Posiciones</Link>
             <Link to="/stats" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Estadísticas</Link>
-            <Link to="/teams" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Equipos</Link>
+            <Link to="/gallery" className="bg-accent text-white p-4 rounded text-center hover:bg-accent-dark transition duration-300">Galería</Link>
           </div>
         </section>
 
@@ -449,7 +663,7 @@ const Home = () => {
                 </div>
                 <div className="flex flex-col h-full">
                   <div className="p-3 border-b">
-                    {nextMatchday.phase.includes('group_') ? (
+                    {nextMatchday.phase.includes('group_a') || nextMatchday.phase.includes('group_b') ? (
                       <div className="flex items-center justify-between">
                         <div className="flex gap-2">
                           <button
@@ -483,6 +697,51 @@ const Home = () => {
                           </svg>
                         </Link>
                       </div>
+                    ) : nextMatchday.phase.includes('gold_group') || nextMatchday.phase.includes('silver_group') ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              console.log('Cambiando a Grupo Oro (slide 0)');
+                              setCurrentSlide(0);
+                            }}
+                            className={`px-3 py-1.5 text-sm rounded-md transition-all duration-300 ${
+                              // Verificar si estamos mostrando los partidos de Oro
+                              currentSlide < Math.max(1, Math.ceil(nextMatches.filter(m => m.phase === 'gold_group').length / matchesPerSlide))
+                                ? 'bg-yellow-600 text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            Grupo Oro
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Calcular donde empiezan los partidos de Plata
+                              const goldMatches = nextMatches.filter(m => m.phase === 'gold_group');
+                              const slidesForGold = Math.max(1, Math.ceil(goldMatches.length / matchesPerSlide));
+                              console.log('Cambiando a Grupo Plata (slide', slidesForGold, ')');
+                              setCurrentSlide(slidesForGold);
+                            }}
+                            className={`px-3 py-1.5 text-sm rounded-md transition-all duration-300 ${
+                              // Verificar si estamos mostrando los partidos de Plata
+                              currentSlide >= Math.max(1, Math.ceil(nextMatches.filter(m => m.phase === 'gold_group').length / matchesPerSlide))
+                                ? 'bg-gray-600 text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            Grupo Plata
+                          </button>
+                        </div>
+                        <Link 
+                          to="/schedule" 
+                          className="text-sm text-accent hover:text-accent-dark transition-colors duration-300 flex items-center gap-1"
+                        >
+                          Ver calendario completo
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </div>
                     ) : (
                       <div className="flex justify-end">
                         <Link 
@@ -502,7 +761,10 @@ const Home = () => {
                       {nextMatchesDisplay()}
                     </div>
                   </div>
-                  {nextMatchday.phase.includes('group_') && (
+                  {(nextMatchday.phase.includes('group_a') || 
+                    nextMatchday.phase.includes('group_b') ||
+                    nextMatchday.phase.includes('gold_group') || 
+                    nextMatchday.phase.includes('silver_group')) && (
                     <div className="p-3 border-t">
                       <div className="flex justify-center gap-1.5">
                         {Array.from({ 

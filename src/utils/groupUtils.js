@@ -1,7 +1,15 @@
 import { pb } from '../config';
 
-export const updateGroupStats = async () => {
-  console.log('Starting updateGroupStats...');
+export const updateGroupStats = async (match) => {
+  console.log('Starting updateGroupStats for single match:', match?.id);
+
+  // If a specific match is provided, update only relevant group
+  if (match && match.phase) {
+    return updateGroupStatsForMatch(match);
+  }
+
+  // Otherwise perform full update (original implementation)
+  console.log('No match specified, running full group stats update...');
 
   // Find which groups the teams belong to based on the match phase
   const groups = ['group_a_stats', 'group_b_stats', 'gold_group_stats', 'silver_group_stats'];
@@ -150,6 +158,189 @@ export const updateGroupStats = async () => {
   }
   console.log('UpdateGroupStats completed');
   return true;
+};
+
+// New optimized function for single match updates
+const updateGroupStatsForMatch = async (match) => {
+  try {
+    if (!match || !match.phase || !match.home_team || !match.away_team) {
+      console.error('Invalid match data for stats update', match);
+      return false;
+    }
+
+    // Map phase to the correct group collection
+    const phaseToGroup = {
+      'group_a': 'group_a_stats',
+      'group_b': 'group_b_stats',
+      'gold_group': 'gold_group_stats',
+      'silver_group': 'silver_group_stats',
+      'gold_semi': null, // Finals and semifinals don't affect group stats
+      'silver_semi': null,
+      'gold_final': null,
+      'silver_final': null
+    };
+
+    const groupCollection = phaseToGroup[match.phase];
+    if (!groupCollection) {
+      console.log(`Match phase ${match.phase} doesn't affect group statistics`);
+      return true; // Not an error, just no group stats to update
+    }
+
+    console.log(`Updating stats for ${groupCollection} based on match:`, match.id);
+
+    // Get current stats for both teams
+    const homeTeamId = match.home_team;
+    const awayTeamId = match.away_team;
+    const homeScore = match.home_team_score;
+    const awayScore = match.away_team_score;
+
+    console.log(`Match scores: Home(${homeTeamId})=${homeScore} vs Away(${awayTeamId})=${awayScore}`);
+
+    // Get home team stats
+    const homeTeamStats = await pb.collection(groupCollection).getFirstListItem(`team="${homeTeamId}"`);
+    
+    // Get away team stats
+    const awayTeamStats = await pb.collection(groupCollection).getFirstListItem(`team="${awayTeamId}"`);
+    
+    if (!homeTeamStats || !awayTeamStats) {
+      console.log(`One or both teams not found in ${groupCollection}`, 
+        {homeFound: !!homeTeamStats, awayFound: !!awayTeamStats});
+      
+      // If either team is missing, fall back to full recalculation
+      console.log('Falling back to full group recalculation');
+      return await recalculateGroupStats(groupCollection, match.phase);
+    }
+
+    // Due to potential duplicate updates, we need to check if this match has already been counted
+    // We'll do a full recalculation which is safer than trying to determine if a match was counted
+    console.log('Using full recalculation to avoid duplication');
+    return await recalculateGroupStats(groupCollection, match.phase);
+  } catch (error) {
+    console.error('Error updating group stats for match:', error);
+    
+    // If single match update fails, fall back to full recalculation
+    try {
+      const phaseToGroup = {
+        'group_a': 'group_a_stats',
+        'group_b': 'group_b_stats',
+        'gold_group': 'gold_group_stats',
+        'silver_group': 'silver_group_stats'
+      };
+      
+      if (match.phase && phaseToGroup[match.phase]) {
+        console.log('Falling back to full group recalculation after error');
+        return await recalculateGroupStats(phaseToGroup[match.phase], match.phase);
+      }
+    } catch (fallbackError) {
+      console.error('Error in fallback recalculation:', fallbackError);
+    }
+    
+    return false;
+  }
+};
+
+// Helper function to recalculate complete stats for a specific group
+const recalculateGroupStats = async (groupCollection, phase) => {
+  console.log(`Recalculating all stats for ${groupCollection}`);
+  
+  try {
+    // Get current edition
+    const currentEdition = await pb.collection('editions').getFirstListItem('is_current = true');
+    if (!currentEdition) {
+      throw new Error('No current edition found');
+    }
+
+    // 1. Get all records for this group
+    const records = await pb.collection(groupCollection).getFullList({
+      expand: 'team'
+    });
+    
+    // Reset all stats to 0 first
+    for (const record of records) {
+      await pb.collection(groupCollection).update(record.id, {
+        won_matches: 0,
+        lost_matches: 0,
+        drawn_matches: 0,
+        scored_goals: 0,
+        conceived_goals: 0
+      });
+    }
+
+    // 2. Get all finished matches for the current edition and specific phase
+    const matchdays = await pb.collection('matchdays').getFullList({
+      filter: `season = "${currentEdition.id}" && phase = "${phase}"`
+    });
+
+    const matchdayIds = matchdays.map(md => md.id);
+    
+    if (matchdayIds.length === 0) {
+      console.log('No matchdays found for this phase');
+      return true;
+    }
+
+    const matches = await pb.collection('matches').getFullList({
+      filter: `(${matchdayIds.map(id => `matchday = "${id}"`).join(' || ')}) && is_finished = true`
+    });
+
+    // Create a map of team IDs to their stats records
+    const teamRecordMap = {};
+    for (const record of records) {
+      teamRecordMap[record.team] = {
+        recordId: record.id,
+        stats: {
+          won_matches: 0,
+          lost_matches: 0,
+          drawn_matches: 0,
+          scored_goals: 0,
+          conceived_goals: 0
+        }
+      };
+    }
+
+    // Process each match to calculate stats
+    for (const match of matches) {
+      const homeTeamId = match.home_team;
+      const awayTeamId = match.away_team;
+      const homeScore = match.home_team_score;
+      const awayScore = match.away_team_score;
+
+      // Update home team stats if it's in this group
+      if (teamRecordMap[homeTeamId]) {
+        teamRecordMap[homeTeamId].stats.scored_goals += homeScore;
+        teamRecordMap[homeTeamId].stats.conceived_goals += awayScore;
+        if (homeScore > awayScore) {
+          teamRecordMap[homeTeamId].stats.won_matches += 1;
+        } else if (homeScore < awayScore) {
+          teamRecordMap[homeTeamId].stats.lost_matches += 1;
+        } else {
+          teamRecordMap[homeTeamId].stats.drawn_matches += 1;
+        }
+      }
+
+      // Update away team stats if it's in this group
+      if (teamRecordMap[awayTeamId]) {
+        teamRecordMap[awayTeamId].stats.scored_goals += awayScore;
+        teamRecordMap[awayTeamId].stats.conceived_goals += homeScore;
+        if (awayScore > homeScore) {
+          teamRecordMap[awayTeamId].stats.won_matches += 1;
+        } else if (awayScore < homeScore) {
+          teamRecordMap[awayTeamId].stats.lost_matches += 1;
+        } else {
+          teamRecordMap[awayTeamId].stats.drawn_matches += 1;
+        }
+      }
+    }
+
+    // Update all teams in the group with their final stats
+    for (const [teamId, data] of Object.entries(teamRecordMap)) {
+      await pb.collection(groupCollection).update(data.recordId, data.stats);
+    }
+
+    return true;
+  } catch (error) {
+    console.error(`Error recalculating ${groupCollection} stats:`, error);
+    throw error;
+  }
 };
 
 export const getGroupStats = async (groupName, signal) => {

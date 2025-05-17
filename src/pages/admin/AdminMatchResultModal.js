@@ -3,6 +3,7 @@ import { pb } from '../../config';
 import { updateGroupStats } from '../../utils/groupUtils';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { updatePlayerStatistics } from '../../utils/playersUtils';
+import { toast } from 'react-hot-toast';
 
 const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
   const [homeTeam, setHomeTeam] = useState('');
@@ -18,6 +19,7 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
   const [teamsLoading, setTeamsLoading] = useState(false);
   const [manOfTheMatch, setManOfTheMatch] = useState('');
   const [availablePlayers, setAvailablePlayers] = useState({ home: [], away: [] });
+  const [savingStats, setSavingStats] = useState(false);
 
   const loadTeamsForPhase = useCallback(async (phase) => {
     if (!phase) {
@@ -252,34 +254,58 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
       });
       console.log('Match updated:', updatedMatch);
       
+      // Notify the parent component about the save immediately
+      onSave(updatedMatch);
+      setLoading(false);
+      
       // If we're finishing the match or updating MOTM, update statistics
       if (shouldFinish || (data.man_of_the_match !== null && data.man_of_the_match !== match.man_of_the_match)) {
-        // Get the matchday data to know which phase we're in
-        const matchdayData = await pb.collection('matchdays').getOne(match.matchday, {
-          $cancelKey: `matchday-update-${match.id}`
+        // Start background stats update
+        setSavingStats(true);
+        
+        // Show toast notification
+        toast.loading('Actualizando estadísticas en segundo plano...', {
+          id: `stats-update-${match.id}`
         });
         
-        // Update group stats if finishing the match
-        if (shouldFinish) {
-          await updateGroupStats({
-            ...updatedMatch,
-            phase: matchdayData.phase,
-            home_team_score: parseInt(homeScore),
-            away_team_score: parseInt(awayScore)
+        try {
+          // Get the matchday data to know which phase we're in
+          const matchdayData = await pb.collection('matchdays').getOne(match.matchday, {
+            $cancelKey: `matchday-update-${match.id}`
           });
+          
+          // Update group stats if finishing the match
+          if (shouldFinish) {
+            await updateGroupStats({
+              id: match.id,
+              ...updatedMatch,
+              phase: matchdayData.phase,
+              home_team_score: parseInt(homeScore),
+              away_team_score: parseInt(awayScore)
+            });
+          }
+
+          // Update player statistics with specific match ID for better performance
+          await updatePlayerStatistics(updatedMatch.id);
+          
+          // Show success notification
+          toast.success('Estadísticas actualizadas correctamente', {
+            id: `stats-update-${match.id}`
+          });
+        } catch (statsError) {
+          console.error('Error updating statistics:', statsError);
+          toast.error('Error al actualizar estadísticas: ' + (statsError.message || 'Unknown error'), {
+            id: `stats-update-${match.id}`
+          });
+        } finally {
+          setSavingStats(false);
         }
-
-        // Update player statistics
-        await updatePlayerStatistics();
       }
-
-      onSave(updatedMatch);
     } catch (error) {
       if (!error.message?.includes('autocancelled')) {
         console.error('Error updating match:', error);
         alert('Error updating match: ' + (error.message || 'Unknown error'));
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -447,23 +473,38 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
                 type="button"
                 onClick={onCancel}
                 className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded"
+                disabled={loading || savingStats}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                disabled={loading || savingStats}
               >
                 Save Details
               </button>
               <button 
                 type="button"
                 onClick={(e) => handleSubmit(e, true)}
-                className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+                className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded flex items-center"
+                disabled={loading || savingStats}
               >
-                End Match
+                {savingStats ? (
+                  <>
+                    <span className="mr-2">Actualizando...</span>
+                    <LoadingSpinner size="sm" color="white" />
+                  </>
+                ) : "End Match"}
               </button>
             </div>
+            
+            {/* Indicador de actualización de estadísticas */}
+            {savingStats && (
+              <div className="text-center mt-2 text-sm text-gray-600">
+                Actualizando estadísticas en segundo plano...
+              </div>
+            )}
           </form>
         )}
       </div>

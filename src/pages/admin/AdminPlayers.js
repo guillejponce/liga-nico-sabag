@@ -84,6 +84,7 @@ const AdminPlayers = () => {
         yellow_cards: Number(playerData.yellow_cards || 0),
         red_cards: Number(playerData.red_cards || 0),
         man_of_the_match: Number(playerData.man_of_the_match || 0),
+        is_inactive: !!playerData.is_inactive,
       };
       console.log('Formatted player data:', formattedPlayerData);
       const createdPlayer = await createPlayer(formattedPlayerData);
@@ -174,7 +175,8 @@ const AdminPlayers = () => {
             <th className="py-2 px-4 border-b">Goals</th>
             <th className="py-2 px-4 border-b">Yellow Cards</th>
             <th className="py-2 px-4 border-b">Red Cards</th>
-            <th className="py-2 px-4 border-b">Player of the Match</th>
+            <th className="py-2 px-4 border-b">Player of Match</th>
+            <th className="py-2 px-4 border-b">Inscrito</th>
             <th className="py-2 px-4 border-b">Actions</th>
           </tr>
         </thead>
@@ -189,6 +191,7 @@ const AdminPlayers = () => {
               <td className="py-2 px-4 border-b">{player.yellow_cards}</td>
               <td className="py-2 px-4 border-b">{player.red_cards}</td>
               <td className="py-2 px-4 border-b">{player.man_of_the_match}</td>
+              <td className="py-2 px-4 border-b text-center">{player.is_inactive ? 'No' : 'Sí'}</td>
               <td className="py-2 px-4 border-b">
                 <button
                   onClick={() => {
@@ -245,6 +248,7 @@ const PlayerModal = ({ player, teams, onClose, onSave }) => {
         yellow_cards: 0,
         red_cards: 0,
         man_of_the_match: 0,
+        is_inactive: false,
       }
     );
   
@@ -286,6 +290,7 @@ const PlayerModal = ({ player, teams, onClose, onSave }) => {
             yellow_cards: Number(formData.yellow_cards || 0),
             red_cards: Number(formData.red_cards || 0),
             man_of_the_match: Number(formData.man_of_the_match || 0),
+            is_inactive: !!formData.is_inactive,
           };
           console.log('Formatted data being sent to onSave:', formattedData);
           onSave(player ? player.id : null, formattedData);
@@ -418,6 +423,16 @@ const PlayerModal = ({ player, teams, onClose, onSave }) => {
               min="0"
               className="w-full px-3 py-2 border rounded"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              name="is_inactive"
+              checked={formData.is_inactive}
+              onChange={(e)=>setFormData({...formData, is_inactive: e.target.checked})}
+            />
+            <label className="text-sm text-gray-700">Inactive / No inscrito</label>
           </div>
 
           <div className="flex justify-end">

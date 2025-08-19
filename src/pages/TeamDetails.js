@@ -25,7 +25,6 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  BarChart,
 } from '@tremor/react';
 
 const TeamView = () => {
@@ -88,22 +87,6 @@ const TeamView = () => {
     `${team.expand.captain_id.first_name} ${team.expand.captain_id.last_name}` : 
     'No asignado';
 
-  // Custom colors that match your theme
-  const chartColors = {
-    Ganados: 'emerald',     // Success color
-    Empatados: 'accent',    // Your accent color
-    Perdidos: 'red',        // Error color
-  };
-
-  const matchData = [
-    {
-      name: 'Partidos',
-      'Ganados': team.won_matches,
-      'Empatados': team.drawn_matches,
-      'Perdidos': team.lost_matches,
-    },
-  ];
-
   return (
     <main className="bg-gradient-to-br from-body to-body-secondary min-h-screen p-4 sm:p-8">
       <motion.div
@@ -133,6 +116,7 @@ const TeamView = () => {
                 <Star className="w-5 h-5 text-accent" />
                 <Text className="text-text-dark">Capitán: {captainName}</Text>
               </div>
+              <Text className="text-text-dark text-xs sm:text-sm uppercase tracking-wide mt-2">Estadísticas temporada actual</Text>
               <Text className="text-text-dark italic text-sm sm:text-base max-w-lg mx-auto">
                 {team.description}
               </Text>
@@ -282,31 +266,25 @@ const TeamView = () => {
                           whileTap={{ scale: 0.98 }}
                         >
                           <h3 className="font-medium text-lg mb-2">{`${player.first_name} ${player.last_name}`}</h3>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex flex-col items-center p-2 bg-gray-50 rounded">
-                              <span className="text-sm text-gray-600 mb-1">Goles</span>
-                              <Badge color="emerald" className="mx-auto bg-emerald-100 text-emerald-700">
-                                {player.scored_goals}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-col items-center p-2 bg-gray-50 rounded">
-                              <span className="text-sm text-gray-600 mb-1">MVP</span>
-                              <Badge className="mx-auto bg-accent/10 text-accent">
-                                {player.man_of_the_match}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-col items-center p-2 bg-gray-50 rounded">
-                              <span className="text-sm text-gray-600 mb-1">T. Amarillas</span>
-                              <Badge className="mx-auto bg-yellow-100 text-yellow-700 border border-yellow-200">
-                                {player.yellow_cards}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-col items-center p-2 bg-gray-50 rounded">
-                              <span className="text-sm text-gray-600 mb-1">T. Rojas</span>
-                              <Badge className="mx-auto bg-red-100 text-red-700 border border-red-200">
-                                {player.red_cards}
-                              </Badge>
-                            </div>
+                          <div className="grid grid-cols-2 gap-4 mt-2">
+                            {[
+                              { label:'Goles', val:player.scored_goals, color:'text-emerald-600'},
+                              { label:'MVP', val:player.man_of_the_match, color:'text-blue-600'},
+                              { label:'T. Amarillas', val:player.yellow_cards, color:'text-yellow-600'},
+                              { label:'T. Rojas', val:player.red_cards, color:'text-red-600'},
+                              { label:'Inscrito', val:player.is_inactive?'No':'Sí', color: player.is_inactive?'text-gray-500':'text-emerald-600'},
+                            ].map((stat)=>(
+                              <div key={stat.label} className="flex flex-col items-center">
+                                <span className="text-xs text-gray-500">{stat.label}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${stat.color} ${
+                                  stat.label==='Goles' ? 'bg-emerald-100' :
+                                  stat.label==='MVP' ? 'bg-blue-100' :
+                                  stat.label==='T. Amarillas' ? 'bg-yellow-100' :
+                                  stat.label==='T. Rojas' ? 'bg-red-100' :
+                                  stat.label==='Inscrito' ? (stat.val==='Sí' ? 'bg-emerald-100' : 'bg-gray-200') : 'bg-gray-100'
+                                }`}>{stat.val}</span>
+                              </div>
+                            ))}
                           </div>
                         </motion.div>
                       ))}
@@ -322,30 +300,28 @@ const TeamView = () => {
                             <TableHeaderCell className="text-center">T. Amarillas</TableHeaderCell>
                             <TableHeaderCell className="text-center">T. Rojas</TableHeaderCell>
                             <TableHeaderCell className="text-center">MVP</TableHeaderCell>
+                            <TableHeaderCell className="text-center">Inscrito</TableHeaderCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {players.map((player) => (
                             <TableRow key={player.id} className="hover:bg-gray-50/50">
                               <TableCell className="font-medium">{`${player.first_name} ${player.last_name}`}</TableCell>
-                              <TableCell className="text-center">
-                                <Badge color="emerald" className="mx-auto bg-emerald-100 text-emerald-700">
-                                  {player.scored_goals}
-                                </Badge>
+                              <TableCell className="text-center font-semibold text-emerald-600">
+                                {player.scored_goals}
+                              </TableCell>
+                              <TableCell className="text-center font-medium text-yellow-600">
+                                {player.yellow_cards}
+                              </TableCell>
+                              <TableCell className="text-center font-medium text-red-600">
+                                {player.red_cards}
+                              </TableCell>
+                              <TableCell className="text-center font-semibold text-blue-600">
+                                {player.man_of_the_match}
                               </TableCell>
                               <TableCell className="text-center">
-                                <Badge className="mx-auto bg-yellow-100 text-yellow-700 border border-yellow-200">
-                                  {player.yellow_cards}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge className="mx-auto bg-red-100 text-red-700 border border-red-200">
-                                  {player.red_cards}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge className="mx-auto bg-accent/10 text-accent">
-                                  {player.man_of_the_match}
+                                <Badge className={`mx-auto ${player.is_inactive ? 'bg-gray-200 text-gray-500' : 'bg-emerald-100 text-emerald-700'}`}>
+                                  {player.is_inactive ? 'No' : 'Sí'}
                                 </Badge>
                               </TableCell>
                             </TableRow>

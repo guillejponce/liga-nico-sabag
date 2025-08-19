@@ -7,7 +7,7 @@ import {
   deleteTeamOfTheWeek,
   FORMATIONS 
 } from '../../hooks/admin/teamOfTheWeekHandlers';
-import { fetchMatchdays, PHASE_OPTIONS } from '../../hooks/admin/matchdayHandlers';
+import { fetchMatchdays } from '../../hooks/admin/matchdayHandlers';
 import { fetchPlayers } from '../../hooks/admin/playerHandlers';
 import { fetchCurrentEdition } from '../../hooks/admin/editionHandlers';
 import { toast } from 'react-toastify';
@@ -35,13 +35,13 @@ const getPhaseTypeLabel = (phaseType) => {
 };
 
 const AdminTeamOfTheWeek = () => {
-  const [matchdays, setMatchdays] = useState([]);
+  // matchdays state removed: not used
   const [groupedMatchdays, setGroupedMatchdays] = useState([]);
   const [selectedMatchday, setSelectedMatchday] = useState(null);
   const [teamOfTheWeek, setTeamOfTheWeek] = useState(null);
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // error state removed: not used
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     formation: FORMATIONS[0],
@@ -83,7 +83,8 @@ const AdminTeamOfTheWeek = () => {
         // First get current edition
         const currentEdition = await fetchCurrentEdition();
         if (!currentEdition) {
-          setError('No hay temporada activa en este momento.');
+          // log message but no error state
+          console.warn('No hay temporada activa en este momento.');
           setLoading(false);
           return;
         }
@@ -127,7 +128,7 @@ const AdminTeamOfTheWeek = () => {
           return a.number - b.number;
         });
 
-        setMatchdays(currentEditionMatchdays);
+        // matchdays not needed individually
         setGroupedMatchdays(groupedArray);
         setPlayers(fetchedPlayers);
         setFilteredPlayers({
@@ -142,7 +143,7 @@ const AdminTeamOfTheWeek = () => {
       } catch (err) {
         if (!err.message?.includes('autocancelled')) {
           console.error('Error loading initial data:', err);
-          setError('Failed to load data. Please refresh the page.');
+          //
         }
       } finally {
         setLoading(false);

@@ -20,8 +20,10 @@ import ProtectedRoute from '../components/admin/ProtectedRoute';
 import PlayerStatistics from '../pages/PlayerStatistics';
 import Editions from '../pages/Editions';
 import HistoricalTable from '../pages/HistoricalTable';
+import HistoricalScorers from '../pages/HistoricalScorers';
 import Rules from '../pages/Rules';
 import Gallery from '../pages/Gallery';
+import AdminTeamOfTheSeason from '../pages/admin/AdminTeamOfTheSeason';
 
 const Router = () => {
   return (
@@ -36,6 +38,7 @@ const Router = () => {
       <Route path="/admin/login" element={<Login />} />
       <Route path="/editions" element={<Editions />} />
       <Route path="/historical-table" element={<HistoricalTable />} />
+      <Route path="/historical-scorers" element={<HistoricalScorers />} />
       <Route path="/rules" element={<Rules />} />
       <Route path="/gallery" element={<Gallery />} />
 
@@ -47,6 +50,7 @@ const Router = () => {
         <Route path="/admin/players" element={<AdminPlayers />} />
         <Route path="/admin/fixtures" element={<AdminFixtures />} />
         <Route path="/admin/team-of-week" element={<AdminTeamOfTheWeek />} />
+        <Route path="/admin/team-of-season" element={<AdminTeamOfTheSeason />} />
         <Route path="/admin/sanctions" element={<AdminSanctions />} />
         <Route path="/admin/banners" element={<AdminBanners />} />
         <Route path="/admin/editions" element={<AdminEditions />} />

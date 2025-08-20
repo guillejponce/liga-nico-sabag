@@ -18,6 +18,7 @@ const AdminEditions = () => {
     number: '',
     year: new Date().getFullYear(),
     semester: '1',
+    format: 'groups',
     description: '',
     gold_champion: '',
     silver_champion: '',
@@ -79,6 +80,7 @@ const AdminEditions = () => {
         year: edition.year,
         semester: edition.semester,
         description: edition.description || '',
+        format: edition.format || 'groups',
         gold_champion: edition.gold_champion || '',
         silver_champion: edition.silver_champion || '',
         gold_second: edition.gold_second || '',
@@ -93,6 +95,7 @@ const AdminEditions = () => {
         number: '',
         year: new Date().getFullYear(),
         semester: '1',
+        format: 'groups',
         description: '',
         gold_champion: '',
         silver_champion: '',
@@ -362,6 +365,20 @@ const AdminEditions = () => {
                     <option value="2">Segundo Semestre</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Format */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Formato</label>
+                <select
+                  value={formData.format}
+                  onChange={(e) => setFormData({ ...formData, format: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  required
+                >
+                  <option value="groups">Groups</option>
+                  <option value="league">League</option>
+                </select>
               </div>
 
               {/* Description */}

@@ -2,27 +2,29 @@ import { pb } from '../../config';
 import { fetchCurrentEdition } from './editionHandlers';
 
 export const PHASE_OPTIONS = [
-  { label: "Grupo A", value: "group_a" },
-  { label: "Grupo B", value: "group_b" },
-  { label: "Grupo Oro", value: "gold_group" },
-  { label: "Grupo Plata", value: "silver_group" },
-  { label: "Grupo Bronce", value: "bronze_group" },
+  { label: "Regular", value: "regular" },
   { label: "Semifinal Oro", value: "gold_semi" },
   { label: "Semifinal Plata", value: "silver_semi" },
-  { label: "Semifinal Bronce", value: "bronze_semi" },
   { label: "Final Oro", value: "gold_final" },
   { label: "Final Plata", value: "silver_final" },
-  { label: "Final Bronce", value: "bronze_final" },
 ];
 
 export const fetchMatchdays = async (signal) => {
   try {
+    // Fetch the current (active) edition first
+    const currentEdition = await fetchCurrentEdition();
+    if (!currentEdition) {
+      console.log('No current edition found when fetching matchdays');
+      return [];
+    }
+
     const response = await pb.collection('matchdays').getFullList({
       sort: '-number',
+      filter: `season = "${currentEdition.id}"`,
       expand: 'season',
       $autoCancel: false,
       $cancelKey: 'matchdays',
-      signal
+      signal,
     });
     return response;
   } catch (err) {
@@ -43,9 +45,10 @@ export const createMatchday = async (matchdayData) => {
       throw new Error('Matchday date_time is required and cannot be empty');
     }
 
-    if (!PHASE_OPTIONS.find(option => option.value === matchdayData.phase)) {
-      throw new Error('Invalid phase value');
-    }
+    // Phase validation removed to allow backend to define accepted values
+    // if (!PHASE_OPTIONS.find(option => option.value === matchdayData.phase)) {
+    //   throw new Error('Invalid phase value');
+    // }
 
     const currentEdition = await fetchCurrentEdition();
     if (!currentEdition) {

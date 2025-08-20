@@ -4,6 +4,8 @@ import { updateGroupStats } from '../../utils/groupUtils';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { updatePlayerStatistics } from '../../utils/playersUtils';
 import { toast } from 'react-hot-toast';
+import { fetchCurrentEdition } from '../../hooks/admin/editionHandlers';
+import { updateTableStatistics } from '../../utils/tableUtils';
 
 const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
   const [homeTeam, setHomeTeam] = useState('');
@@ -29,8 +31,8 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
 
     setTeamsLoading(true);
     try {
-      // For semifinals and finals, show all teams
-      if (phase === 'gold_semi' || phase === 'silver_semi' || 
+      // For phases where we want all teams (regular, semi/final)
+      if (phase === 'regular' || phase === 'gold_semi' || phase === 'silver_semi' || 
           phase === 'gold_final' || phase === 'silver_final') {
         const allTeams = await pb.collection('teams').getFullList({
           sort: 'name',
@@ -287,6 +289,12 @@ const AdminMatchResultModal = ({ match, onSave, onCancel }) => {
 
           // Update player statistics with specific match ID for better performance
           await updatePlayerStatistics(updatedMatch.id);
+
+          // If edition is league, refresh table stats as well
+          const currentEd = await fetchCurrentEdition();
+          if (currentEd?.format === 'league') {
+            await updateTableStatistics();
+          }
           
           // Show success notification
           toast.success('Estadísticas actualizadas correctamente', {

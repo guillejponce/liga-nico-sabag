@@ -11,27 +11,23 @@ import { toast } from 'react-toastify';
 import { useTeams } from '../../hooks/teams/useTeams';
 import AdminMatchdayModal from './AdminMatchdayModal';
 import { updateGroupStats } from '../../utils/groupUtils';
+// new import to fetch the current edition
+import { fetchCurrentEdition } from '../../hooks/admin/editionHandlers';
+import { updateTableStatistics } from '../../utils/tableUtils';
 
 const phaseOptions = [
-  { label: "Group A", value: "group_a" },
-  { label: "Group B", value: "group_b" },
-  { label: "Gold Group", value: "gold_group" },
-  { label: "Silver Group", value: "silver_group" },
-  { label: "Bronze Group", value: "bronze_group" },
-  { label: "Semifinal Gold", value: "gold_semi" },
-  { label: "Semifinal Silver", value: "silver_semi" },
-  { label: "Semifinal Bronze", value: "bronze_semi" },
-  { label: "Final Gold", value: "gold_final" },
-  { label: "Final Silver", value: "silver_final" },
-  { label: "Final Bronze", value: "bronze_final" },
+  { label: "Regular", value: "regular" },
+  { label: "Semifinal Oro", value: "gold_semi" },
+  { label: "Final Oro", value: "gold_final" },
+  { label: "Semifinal Plata", value: "silver_semi" },
+  { label: "Final Plata", value: "silver_final" },
 ];
 
 // Helper to convert a matchday phase to a stage (for team stats update)
 const getStageFromPhase = (phase) => {
-  if (phase === 'group_a' || phase === 'group_b') return 'group_phase';
-  if (phase === 'gold_group' || phase === 'silver_group' || phase === 'bronze_group') return 'playoffs';
-  if (phase === 'gold_semi' || phase === 'silver_semi' || phase === 'bronze_semi') return 'semifinals';
-  if (phase === 'gold_final' || phase === 'silver_final' || phase === 'bronze_final') return 'finals';
+  if (phase === 'regular') return 'group_phase';
+  if (phase === 'gold_semi' || phase === 'silver_semi') return 'semifinals';
+  if (phase === 'gold_final' || phase === 'silver_final') return 'finals';
   return '';
 };
 
@@ -51,15 +47,28 @@ const AdminFixtures = () => {
   const [savedMatchdays, setSavedMatchdays] = useState({}); // Track saved state for each matchday
   const [editingMatchday, setEditingMatchday] = useState(null);
 
+  // Ensure selectedAdminPhase is always a valid option
+  useEffect(() => {
+    if (!phaseOptions.find(opt => opt.value === selectedAdminPhase)) {
+      setSelectedAdminPhase('regular');
+    }
+  }, [selectedAdminPhase]);
+
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
     
     const loadMatchdays = async () => {
       try {
+        const currentEdition = await fetchCurrentEdition();
+        if (!currentEdition) {
+          if (mounted) setError('No current edition set');
+          return;
+        }
         const fetchedMatchdays = await fetchMatchdays();
         if (!mounted) return;
-        const sortedMatchdays = fetchedMatchdays.sort((a, b) => b.number - a.number);
+        const editionMatchdays = fetchedMatchdays.filter(md => md.season === currentEdition.id);
+        const sortedMatchdays = editionMatchdays.sort((a, b) => b.number - a.number);
         // Load matches for each matchday
         const matchdaysWithMatches = await Promise.all(
           sortedMatchdays.map(async (matchday) => {
@@ -283,6 +292,9 @@ const AdminFixtures = () => {
       // Get the matchday data to know which phase we're in
       const matchdayData = await pb.collection('matchdays').getOne(match.matchday);
 
+      // Fetch full match record to ensure we have IDs and scores
+      const fullMatchRec = await pb.collection('matches').getOne(match.id);
+
       // Delete all events associated with this match first
       const events = await pb.collection('events').getFullList({
         filter: `match="${match.id}"`
@@ -308,9 +320,23 @@ const AdminFixtures = () => {
 
       setMatchdays(updatedMatchdays);
 
-      // If the match was finished, update group stats
-      if (match.is_finished) {
-        await updateGroupStats();
+      // Mostrar notificación de proceso en segundo plano
+      toast.loading('Actualizando estadísticas en segundo plano...', {
+        id: `stats-update-${match.id}`
+      });
+
+      try {
+        // Únicamente recalcular la tabla general (incluye puntos / PJ / DG)
+        await updateTableStatistics();
+
+        toast.success('Estadísticas actualizadas correctamente', {
+          id: `stats-update-${match.id}`
+        });
+      } catch (statsErr) {
+        console.error('Error actualizando estadísticas tras eliminar partido:', statsErr);
+        toast.error('Error al actualizar estadísticas: ' + (statsErr.message || 'Desconocido'), {
+          id: `stats-update-${match.id}`
+        });
       }
 
       toast.success('Partido eliminado correctamente');

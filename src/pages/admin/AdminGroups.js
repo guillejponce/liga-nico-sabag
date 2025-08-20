@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { pb } from '../../config';
 import { useTeams } from '../../hooks/teams/useTeams';
+import { fetchCurrentEdition } from '../../hooks/admin/editionHandlers';
 
 const GroupSection = ({ title, teams, groupTeams, onAssign, group, isLoading }) => {
   const [selectedTeam, setSelectedTeam] = useState('');
@@ -80,6 +81,7 @@ const AdminGroups = () => {
   const { teams, loading: teamsLoading, refreshTeams } = useTeams();
   const [groupATeams, setGroupATeams] = useState([]);
   const [groupBTeams, setGroupBTeams] = useState([]);
+  const [leagueTeams, setLeagueTeams] = useState([]); // for league format
   const [goldGroupTeams, setGoldGroupTeams] = useState([]);
   const [silverGroupTeams, setSilverGroupTeams] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState({
@@ -90,8 +92,35 @@ const AdminGroups = () => {
   });
 
   useEffect(() => {
-    loadGroupAssignments();
+    const init = async () => {
+      const ed = await fetchCurrentEdition();
+      console.log('Current edition fetched in AdminGroups:', ed);
+      setEdition(ed);
+      if (ed?.format === 'league') {
+        await loadLeagueAssignments(ed.id);
+      } else {
+        await loadGroupAssignments();
+      }
+    };
+    init();
   }, []);
+
+  const [edition, setEdition] = useState(null);
+
+  // Debug render
+  useEffect(()=>{
+    console.log('AdminGroups render edition state:', edition);
+  }, [edition]);
+
+  const loadLeagueAssignments = async () => {
+    try {
+      const records = await pb.collection('table').getFullList({
+        expand: 'team',
+        sort: 'created',
+      });
+      setLeagueTeams(records.map(r=>r.expand.team).filter(Boolean));
+    } catch(err){ console.error(err); }
+  };
 
   const loadGroupAssignments = async () => {
     try {
@@ -135,6 +164,21 @@ const AdminGroups = () => {
     }));
 
     try {
+      if(edition?.format==='league'){
+        // add/remove in table collection
+        if(isRemoving){
+          const recs = await pb.collection('table').getFullList({filter:`team="${teamId}"`});
+          for(const r of recs){ await pb.collection('table').delete(r.id);}  
+        }else{
+          // create if not exists
+          const existing = await pb.collection('table').getFullList({filter:`team="${teamId}"`});
+          if(existing.length===0){
+            await pb.collection('table').create({team:teamId});
+          }
+        }
+        await loadLeagueAssignments();
+        return;
+      }
       // If isRemoving is true, we're removing the team from the specified group
       if (isRemoving) {
         let collectionToRemoveFrom;
@@ -156,7 +200,7 @@ const AdminGroups = () => {
         }
 
         const records = await pb.collection(collectionToRemoveFrom).getFullList({
-          filter: `team = "${teamId}"`
+          filter: `team="${teamId}"`
         });
         
         for (const record of records) {
@@ -194,7 +238,7 @@ const AdminGroups = () => {
 
         // Check if team already exists in the target group
         const existingRecords = await pb.collection(targetCollection).getFullList({
-          filter: `team = "${teamId}"`
+          filter: `team="${teamId}"`
         });
 
         // Only add if team is not already in the group
@@ -227,7 +271,16 @@ const AdminGroups = () => {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Gestión de Grupos</h1>
-      
+      {edition?.format==='league' ? (
+        <GroupSection
+          title="Tabla General"
+          teams={teams}
+          groupTeams={leagueTeams}
+          onAssign={handleTeamAssignment}
+          group="LEAGUE"
+          isLoading={loadingGroups.LEAGUE}
+        />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <GroupSection
           title="Grupo A"
@@ -265,6 +318,7 @@ const AdminGroups = () => {
           isLoading={loadingGroups.SILVER}
         />
       </div>
+      )}
     </div>
   );
 };

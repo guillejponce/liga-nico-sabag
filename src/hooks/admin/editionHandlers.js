@@ -23,6 +23,7 @@ export const createEdition = async (editionData) => {
       number: editionData.number,
       year: editionData.year,
       semester: editionData.semester,
+      format: editionData.format || 'groups',
       description: editionData.description || '',
       gold_champion: editionData.gold_champion || '',
       silver_champion: editionData.silver_champion || '',
@@ -51,6 +52,7 @@ export const updateEdition = async (id, editionData) => {
       number: editionData.number,
       year: editionData.year,
       semester: editionData.semester,
+      format: editionData.format || 'groups',
       description: editionData.description || '',
       gold_champion: editionData.gold_champion || '',
       silver_champion: editionData.silver_champion || '',
@@ -125,11 +127,12 @@ export const fetchCurrentEdition = async () => {
   try {
     const resultList = await pb.collection('editions').getList(1, 1, {
       filter: 'is_current = true',
-      expand: 'gold_champion,silver_champion,gold_second,silver_second,topscorer,player_of_the_tournament,top_goalkeeper'
+      expand: 'gold_champion,silver_champion,gold_second,silver_second,topscorer,player_of_the_tournament,top_goalkeeper',
+      $autoCancel: false
     });
     return resultList.items[0] || null;
   } catch (err) {
     console.error('Error fetching current edition:', err);
-    throw new Error('Failed to fetch current edition. Please try again.');
+    return null;
   }
 };

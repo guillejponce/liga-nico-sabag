@@ -1,5 +1,5 @@
 // src/components/Teams.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Trophy, Star, User } from 'lucide-react';
 import { useTeams } from '../hooks/teams/useTeams';
@@ -7,11 +7,27 @@ import { pb } from '../config';
 
 const Teams = () => {
   const { teams, loading, error } = useTeams();
+  const [tableMap, setTableMap] = useState({});
+
+  useEffect(() => {
+    const loadTable = async () => {
+      try {
+        const records = await pb.collection('table').getFullList({ perPage: 500 });
+        const map = {};
+        records.forEach(r => {
+          map[r.team] = r;
+        });
+        setTableMap(map);
+      } catch (err) {
+        console.error('Error loading table stats:', err);
+      }
+    };
+    loadTable();
+  }, []);
 
   if (loading) return <div className="text-center py-8">Loading teams...</div>;
   if (error) return <div className="text-center py-8 text-red-500">Error: {error}</div>;
 
-  // Sort teams alphabetically by name
   const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
@@ -41,7 +57,7 @@ const Teams = () => {
               <div className="flex-grow">
                 <div className="flex items-center text-text-dark mb-2">
                   <Trophy size={18} className="mr-2" />
-                  <span>{team.won_matches || 0} victorias</span>
+                  <span>{tableMap[team.id]?.won_matches || 0} victorias</span>
                 </div>
                 <div className="flex items-center text-text-dark">
                   <User size={18} className="mr-2" />

@@ -3,7 +3,7 @@ import { pb } from '../config';
 // Returns an array of phase identifiers based on a given stage
 export const getPhasesByStage = (stage) => {
   const stagePhases = {
-    'group_phase': ['group_a', 'group_b'],
+    'group_phase': ['group_a', 'group_b', 'regular'],
     'playoffs': ['gold_group', 'silver_group', 'bronze_group'],
     'semifinals': ['gold_semi', 'silver_semi', 'bronze_semi'],
     'finals': ['gold_final', 'silver_final', 'bronze_final']

@@ -34,6 +34,21 @@ const TeamView = () => {
   const [galleryImages, setGalleryImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [loadingImages, setLoadingImages] = useState(true);
+  const [tableRec, setTableRec] = useState(null);
+
+  useEffect(() => {
+    const loadTableRec = async () => {
+      if (!teamId) return;
+      try {
+        const rec = await pb.collection('table').getFirstListItem(`team="${teamId}"`, { perPage: 1 });
+        setTableRec(rec);
+      } catch (err) {
+        console.warn('No table record for team', teamId);
+        setTableRec(null);
+      }
+    };
+    loadTableRec();
+  }, [teamId]);
 
   useEffect(() => {
     const loadGalleryImages = async () => {
@@ -79,8 +94,14 @@ const TeamView = () => {
   if (teamError || playersError) return <div className="text-center py-8 text-red-500">Error al cargar los datos</div>;
   if (!team) return <div className="text-center py-8">Equipo no encontrado</div>;
 
-  const totalMatches = team.won_matches + team.drawn_matches + team.lost_matches;
-  const winRate = (team.won_matches / totalMatches) * 100;
+  const wins = tableRec?.won_matches ?? team.won_matches;
+  const draws = tableRec?.drawn_matches ?? team.drawn_matches;
+  const losses = tableRec?.lost_matches ?? team.lost_matches;
+  const scored = tableRec?.scored_goals ?? team.scored_goals;
+  const conceived = tableRec?.conceived_goals ?? team.conceived_goals;
+
+  const totalMatches = wins + draws + losses;
+  const winRate = totalMatches ? (wins / totalMatches) * 100 : 0;
 
   // Get captain name from expanded relation
   const captainName = team.expand?.captain_id ? 
@@ -166,7 +187,7 @@ const TeamView = () => {
                       <Goal className="w-8 h-8 text-blue-500 mb-2 sm:mb-0 sm:mr-3" />
                       <div>
                         <Text className="text-text-dark text-sm sm:text-base">Goles Anotados</Text>
-                        <Metric className="text-text text-2xl sm:text-3xl">{team.scored_goals}</Metric>
+                        <Metric className="text-text text-2xl sm:text-3xl">{scored}</Metric>
                       </div>
                     </Flex>
                   </Card>
@@ -182,7 +203,7 @@ const TeamView = () => {
                       <ShieldAlert className="w-8 h-8 text-orange-500 mb-2 sm:mb-0 sm:mr-3" />
                       <div>
                         <Text className="text-text-dark text-sm sm:text-base">Goles Recibidos</Text>
-                        <Metric className="text-text text-2xl sm:text-3xl">{team.conceived_goals}</Metric>
+                        <Metric className="text-text text-2xl sm:text-3xl">{conceived}</Metric>
                       </div>
                     </Flex>
                   </Card>
@@ -199,21 +220,21 @@ const TeamView = () => {
                     <div className="mt-4">
                       <Flex>
                         <Text className="text-text-dark">Partidos Ganados</Text>
-                        <Text className="text-text">{team.won_matches}</Text>
+                        <Text className="text-text">{wins}</Text>
                       </Flex>
-                      <ProgressBar value={team.won_matches / totalMatches * 100} color="green" className="mt-2" />
+                      <ProgressBar value={wins / (totalMatches||1) * 100} color="green" className="mt-2" />
                       
                       <Flex className="mt-4">
                         <Text className="text-text-dark">Partidos Empatados</Text>
-                        <Text className="text-text">{team.drawn_matches}</Text>
+                        <Text className="text-text">{draws}</Text>
                       </Flex>
-                      <ProgressBar value={team.drawn_matches / totalMatches * 100} color="blue" className="mt-2" />
+                      <ProgressBar value={draws / (totalMatches||1) * 100} color="blue" className="mt-2" />
                       
                       <Flex className="mt-4">
                         <Text className="text-text-dark">Partidos Perdidos</Text>
-                        <Text className="text-text">{team.lost_matches}</Text>
+                        <Text className="text-text">{losses}</Text>
                       </Flex>
-                      <ProgressBar value={team.lost_matches / totalMatches * 100} color="red" className="mt-2" />
+                      <ProgressBar value={losses / (totalMatches||1) * 100} color="red" className="mt-2" />
                     </div>
                   </Card>
                 </motion.div>
@@ -227,15 +248,15 @@ const TeamView = () => {
                     <div className="mt-4">
                       <Flex>
                         <Text className="text-text-dark">Goles Anotados</Text>
-                        <Text className="text-text">{team.scored_goals}</Text>
+                        <Text className="text-text">{scored}</Text>
                       </Flex>
                       <Flex className="mt-4">
                         <Text className="text-text-dark">Goles Recibidos</Text>
-                        <Text className="text-text">{team.conceived_goals}</Text>
+                        <Text className="text-text">{conceived}</Text>
                       </Flex>
                       <Flex className="mt-4">
                         <Text className="text-text-dark">Diferencia de Goles</Text>
-                        <Text className="text-text">{team.scored_goals - team.conceived_goals}</Text>
+                        <Text className="text-text">{scored - conceived}</Text>
                       </Flex>
                     </div>
                   </Card>

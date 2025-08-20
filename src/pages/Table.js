@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTable, useSortBy } from 'react-table';
 import { FaUsers } from 'react-icons/fa';
 import { useTeams } from '../hooks/teams/useTeams';
+import { fetchCurrentEdition } from '../hooks/admin/editionHandlers';
 import {
   updateTeamStatistics,
   getTeamsByPhase,
@@ -39,9 +40,9 @@ const TableComponent = ({ data, title }) => {
           return (
             <div className="flex items-center">
               {team.logo && (
-                <img 
-                  src={team.logo} 
-                  alt={team.name} 
+                <img
+                  src={pb.getFileUrl(team, team.logo)}
+                  alt={team.name}
                   className="w-10 h-10 mr-3 rounded-full object-cover border-2 border-gray-100 shadow-sm"
                 />
               )}
@@ -136,31 +137,42 @@ const TableComponent = ({ data, title }) => {
         <div className="inline-block min-w-full align-middle">
           <table {...getTableProps()} className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
-              {headerGroups.map(headerGroup => (
-                <tr {...headerGroup.getHeaderGroupProps()}>
-                  {headerGroup.headers.map(column => (
-                    <th
-                      {...column.getHeaderProps(column.getSortByToggleProps())}
-                      className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200"
-                    >
-                      {column.render('Header')}
-                      <span>
-                        {column.isSorted
-                          ? column.isSortedDesc
-                            ? ' ↓'
-                            : ' ↑'
-                          : ''}
-                      </span>
-                    </th>
-                  ))}
-                </tr>
-              ))}
+              {headerGroups.map(headerGroup => {
+                const hgProps = headerGroup.getHeaderGroupProps();
+                const { key: hgKey, ...restHg } = hgProps;
+                return (
+                  <tr key={hgKey} {...restHg}>
+                    {headerGroup.headers.map(column => {
+                      const colProps = column.getHeaderProps(column.getSortByToggleProps());
+                      const { key: colKey, ...restCol } = colProps;
+                      return (
+                        <th
+                          key={colKey}
+                          {...restCol}
+                          className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200"
+                        >
+                          {column.render('Header')}
+                          <span>
+                            {column.isSorted
+                              ? column.isSortedDesc
+                                ? ' ↓'
+                                : ' ↑'
+                              : ''}
+                          </span>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </thead>
             <tbody {...getTableBodyProps()} className="bg-white divide-y divide-gray-100">
               {rows.map((row, index) => {
                 prepareRow(row);
+                const rowProps = row.getRowProps();
+                const { key: rKey, ...restRow } = rowProps;
                 return (
-                  <tr {...row.getRowProps()} className="hover:bg-blue-50 transition-colors duration-150">
+                  <tr key={rKey} {...restRow} className="hover:bg-blue-50 transition-colors duration-150">
                     {row.cells.map((cell, cellIndex) => {
                       // If this is the first column (position number)
                       if (cellIndex === 0) {
@@ -197,6 +209,8 @@ const TableComponent = ({ data, title }) => {
 
 const TableView = () => {
   const { teams = [], loading, error, refreshTeams } = useTeams();
+  const [currentEdition, setCurrentEdition] = React.useState(null);
+  const [leagueTable, setLeagueTable] = React.useState([]);
   const [selectedStage, setSelectedStage] = React.useState('group_phase');
   const [selectedTab, setSelectedTab] = React.useState('group_a');
   const [updating, setUpdating] = React.useState(false);
@@ -207,6 +221,22 @@ const TableView = () => {
     gold_group: [],
     silver_group: []
   });
+
+  React.useEffect(()=>{
+    const loadEditionAndTable = async () => {
+      const ed = await fetchCurrentEdition();
+      setCurrentEdition(ed);
+      if (ed?.format === 'league') {
+        const list = await pb.collection('table').getFullList({
+          expand: 'team',
+          $autoCancel: false,
+          perPage:500
+        });
+        setLeagueTable(list);
+      }
+    };
+    loadEditionAndTable();
+  },[]);
 
   // Load teams by phase for the current stage
   const loadTeamsForPhases = async (phases) => {
@@ -408,6 +438,30 @@ const TableView = () => {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // League format rendering
+  if (currentEdition?.format === 'league') {
+    const leagueData = leagueTable.map(item=>({
+          team:item.expand.team,
+          matchesPlayed:item.matches_played||0,
+          points: item.points ?? (item.won_matches*3 + item.drawn_matches),
+          goalDifference:(item.scored_goals-item.conceived_goals),
+          goalsFor:item.scored_goals,
+          goalsAgainst:item.conceived_goals,
+          wins:item.won_matches,
+          draws:item.drawn_matches,
+          losses:item.lost_matches,
+        })).sort((a,b)=>{
+          if(b.points!==a.points) return b.points-a.points;
+          if(b.goalDifference!==a.goalDifference) return b.goalDifference-a.goalDifference;
+          return b.goalsFor - a.goalsFor;
+        });
+        return (
+      <div className="container mx-auto px-4 py-8">
+        <TableComponent data={leagueData} title="Tabla General" />
       </div>
     );
   }

@@ -24,6 +24,7 @@ const PlayerStatistics = () => {
       try {
         const edition = await fetchCurrentEdition();
         setCurrentEdition(edition);
+        // No heavy updates here; just set edition for later queries
       } catch (error) {
         console.error('Error loading current edition:', error);
       }
@@ -32,24 +33,70 @@ const PlayerStatistics = () => {
     loadCurrentEdition();
   }, []);
 
+  // Load statistics based on events for the current edition
   useEffect(() => {
-    const loadPlayers = async () => {
+    const loadStatsFromEvents = async () => {
+      if (!currentEdition) return;
       try {
         setLoading(true);
-        const records = await pb.collection('players').getFullList({
-          sort: `-${getSortField(activeTab)}`,
-          expand: 'team'
+
+        // 1. Get all matchdays for the edition
+        const matchdays = await pb.collection('matchdays').getFullList({
+          filter: `season = "${currentEdition.id}"`,
+          $cancelKey: 'player-stats-matchdays'
         });
-        setPlayers(records);
-      } catch (error) {
-        console.error('Error loading players:', error);
+        const matchdayIds = matchdays.map(md => md.id);
+        if (matchdayIds.length === 0) {
+          setPlayers([]);
+          return;
+        }
+
+        // 2. Build event filter by match ids inside these matchdays
+        const matches = await pb.collection('matches').getFullList({
+          filter: `(${matchdayIds.map(id => `matchday = "${id}"`).join(' || ')}) && is_finished = true`,
+          $cancelKey: 'player-stats-matches'
+        });
+        const matchIds = matches.map(m => m.id);
+        if (matchIds.length === 0) {
+          setPlayers([]);
+          return;
+        }
+
+        const eventType = activeTab === TABS.GOALS ? 'goal' : (activeTab === TABS.YELLOW_CARDS ? 'yellow_card' : 'red_card');
+        const eventFilter = matchIds.map(id => `match = "${id}"`).join(' || ');
+
+        const events = await pb.collection('events').getFullList({
+          filter: `type = "${eventType}" && (${eventFilter})`,
+          expand: 'player.team',
+          $cancelKey: 'player-stats-events'
+        });
+
+        // 3. Aggregate per player
+        const map = {};
+        events.forEach(ev => {
+          const p = ev.expand?.player;
+          if (!p) return;
+          if (!map[p.id]) {
+            map[p.id] = { count: 0, player: p };
+          }
+          map[p.id].count += 1;
+        });
+
+        const playersArr = Object.values(map).sort((a,b)=>b.count - a.count);
+        setPlayers(playersArr);
+      } catch(err){
+        if(!err.message?.includes('autocancelled')){
+          console.error('Error loading player stats from events:', err);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    loadPlayers();
-  }, [activeTab]);
+    loadStatsFromEvents();
+
+    return () => pb.cancelAllRequests();
+  }, [activeTab, currentEdition]);
 
   useEffect(() => {
     const loadMatchdays = async () => {
@@ -114,18 +161,7 @@ const PlayerStatistics = () => {
     loadTeamsOfWeek();
   }, [matchdays, activeTab, currentEdition]);
 
-  const getSortField = (tab) => {
-    switch (tab) {
-      case TABS.GOALS:
-        return 'scored_goals';
-      case TABS.YELLOW_CARDS:
-        return 'yellow_cards';
-      case TABS.RED_CARDS:
-        return 'red_cards';
-      default:
-        return 'scored_goals';
-    }
-  };
+  // getSortField no longer needed after aggregation
 
   const formatTeamOfWeekPlayers = (teamOfWeek) => {
     if (!teamOfWeek) return [];
@@ -185,18 +221,7 @@ const PlayerStatistics = () => {
       return renderTeamOfWeek();
     }
     
-    const filteredPlayers = players.filter(player => {
-      switch (activeTab) {
-        case TABS.GOALS:
-          return player.scored_goals > 0;
-        case TABS.YELLOW_CARDS:
-          return player.yellow_cards > 0;
-        case TABS.RED_CARDS:
-          return player.red_cards > 0;
-        default:
-          return true;
-      }
-    });
+    const filteredPlayers = players; // Already aggregated & filtered
 
     return (
       <div className="overflow-x-auto">
@@ -221,19 +246,19 @@ const PlayerStatistics = () => {
               <tr key={player.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="font-medium text-gray-900">
-                    {player.first_name} {player.last_name}
+                    {player.player.first_name} {player.player.last_name}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    {player.expand?.team?.logo && (
+                    {player.player.expand?.team?.logo && (
                       <img
-                        src={pb.getFileUrl(player.expand.team, player.expand.team.logo)}
-                        alt={player.expand.team.name}
+                        src={pb.getFileUrl(player.player.expand.team, player.player.expand.team.logo)}
+                        alt={player.player.expand.team.name}
                         className="w-6 h-6 rounded-full mr-2"
                       />
                     )}
-                    <span>{player.expand?.team?.name || 'N/A'}</span>
+                    <span>{player.player.expand?.team?.name || 'N/A'}</span>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -241,9 +266,7 @@ const PlayerStatistics = () => {
                     {activeTab === TABS.GOALS && <Goal className="w-4 h-4 mr-1 text-green-500" />}
                     {activeTab === TABS.YELLOW_CARDS && <AlertTriangle className="w-4 h-4 mr-1 text-yellow-500" />}
                     {activeTab === TABS.RED_CARDS && <AlertTriangle className="w-4 h-4 mr-1 text-red-500" />}
-                    {activeTab === TABS.GOALS ? player.scored_goals :
-                     activeTab === TABS.YELLOW_CARDS ? player.yellow_cards :
-                     player.red_cards}
+                    {player.count}
                   </span>
                 </td>
               </tr>

@@ -445,15 +445,16 @@ const TableView = () => {
   // League format rendering
   if (currentEdition?.format === 'league') {
     const leagueData = leagueTable.map(item=>({
-          team:item.expand.team,
-          matchesPlayed:item.matches_played||0,
-          points: item.points ?? (item.won_matches*3 + item.drawn_matches),
-          goalDifference:(item.scored_goals-item.conceived_goals),
-          goalsFor:item.scored_goals,
-          goalsAgainst:item.conceived_goals,
-          wins:item.won_matches,
-          draws:item.drawn_matches,
-          losses:item.lost_matches,
+          team: item.expand.team,
+          // Calculate matches played dynamically to avoid relying on stale DB field
+          matchesPlayed: (item.won_matches ?? 0) + (item.drawn_matches ?? 0) + (item.lost_matches ?? 0),
+          points: item.points ?? (item.won_matches * 3 + item.drawn_matches),
+          goalDifference: (item.scored_goals - item.conceived_goals),
+          goalsFor: item.scored_goals,
+          goalsAgainst: item.conceived_goals,
+          wins: item.won_matches,
+          draws: item.drawn_matches,
+          losses: item.lost_matches,
         })).sort((a,b)=>{
           if(b.points!==a.points) return b.points-a.points;
           if(b.goalDifference!==a.goalDifference) return b.goalDifference-a.goalDifference;

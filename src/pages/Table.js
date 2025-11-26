@@ -176,9 +176,12 @@ const TableComponent = ({ data, title }) => {
                     {row.cells.map((cell, cellIndex) => {
                       // If this is the first column (position number)
                       if (cellIndex === 0) {
+                        const cellProps = cell.getCellProps();
+                        const { key: cellKey, ...restCell } = cellProps;
                         return (
                           <td
-                            {...cell.getCellProps()}
+                            key={cellKey}
+                            {...restCell}
                             className="px-6 py-4 whitespace-nowrap"
                           >
                             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 font-bold text-blue-800 shadow-sm">
@@ -188,12 +191,19 @@ const TableComponent = ({ data, title }) => {
                         );
                       }
                       return (
-                        <td
-                          {...cell.getCellProps()}
-                          className="px-6 py-4 whitespace-nowrap"
-                        >
-                          {cell.render('Cell')}
-                        </td>
+                        (() => {
+                          const cellProps = cell.getCellProps();
+                          const { key: cellKey, ...restCell } = cellProps;
+                          return (
+                            <td
+                              key={cellKey}
+                              {...restCell}
+                              className="px-6 py-4 whitespace-nowrap"
+                            >
+                              {cell.render('Cell')}
+                            </td>
+                          );
+                        })()
                       );
                     })}
                   </tr>

@@ -30,7 +30,7 @@ const AdminDashboard = () => {
     { icon: Award, label: 'Team of the Season', path: '/admin/team-of-season', color: 'bg-orange-600' },
     { icon: Shield, label: 'Manage Sanctions', path: '/admin/sanctions', color: 'bg-indigo-500' },
     { icon: Grid, label: 'Manage Groups', path: '/admin/groups', color: 'bg-blue-500' },
-    { icon: Database, label: 'Database Admin', path: 'https://api.liganicosabag.me/_/', color: 'bg-gray-700', external: true },
+    { icon: Database, label: 'Database Admin', path: 'https://api.liganicosabag.cl/_/', color: 'bg-gray-700', external: true },
     { icon: Image, label: 'Manage Banners', path: '/admin/banners', color: 'bg-pink-500' },
     { icon: Trophy, label: 'Manage Editions', path: '/admin/editions', color: 'bg-purple-600' },
     { icon: Camera, label: 'Manage Gallery', path: '/admin/gallery', color: 'bg-cyan-500' },

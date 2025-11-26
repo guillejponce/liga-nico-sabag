@@ -63,13 +63,24 @@ const PlayerStatistics = () => {
         }
 
         const eventType = activeTab === TABS.GOALS ? 'goal' : (activeTab === TABS.YELLOW_CARDS ? 'yellow_card' : 'red_card');
-        const eventFilter = matchIds.map(id => `match = "${id}"`).join(' || ');
+        const chunks = [];
+        const chunkSize = 40;
+        for (let i = 0; i < matchIds.length; i += chunkSize) {
+          chunks.push(matchIds.slice(i, i + chunkSize));
+        }
 
-        const events = await pb.collection('events').getFullList({
-          filter: `type = "${eventType}" && (${eventFilter})`,
-          expand: 'player.team',
-          $cancelKey: 'player-stats-events'
-        });
+        let allEvents = [];
+        for (const chunk of chunks) {
+          const eventFilterChunk = chunk.map(id => `match = "${id}"`).join(' || ');
+          const eventsChunk = await pb.collection('events').getFullList({
+            filter: `type = "${eventType}" && (${eventFilterChunk})`,
+            expand: 'player.team',
+            $cancelKey: 'player-stats-events'
+          });
+          allEvents = allEvents.concat(eventsChunk);
+        }
+
+        const events = allEvents;
 
         // 3. Aggregate per player
         const map = {};

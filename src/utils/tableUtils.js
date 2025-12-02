@@ -28,7 +28,19 @@ export const updateTableStatistics = async () => {
       sort: '+number',
       perPage: 500,
     });
-    const matchdayIds = matchdays.map(md => md.id);
+
+    // Exclude gold/silver semifinals and finals as they should not count towards the league table
+    const EXCLUDED_PHASES = ['gold_semi', 'gold_final', 'silver_semi', 'silver_final'];
+    const relevantMatchdays = matchdays.filter(
+      md => !EXCLUDED_PHASES.includes(md.phase)
+    );
+
+    const matchdayIds = relevantMatchdays.map(md => md.id);
+
+    if (matchdayIds.length === 0) {
+      console.warn('No relevant matchdays found after excluding playoff phases; skipping table update');
+      return false;
+    }
 
     // 4. Fetch all finished matches for those matchdays
     const matches = await pb.collection('matches').getFullList({
